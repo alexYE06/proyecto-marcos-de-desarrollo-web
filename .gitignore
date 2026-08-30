@@ -27,3 +27,17 @@ replay_pid*
 *.env
 application-secret.properties
 .vscode/
+
+# Directorios de compilación (Maven y VS Code)
+target/
+out/
+bin/
+
+# Configuración de otros IDEs (Eclipse, IntelliJ, NetBeans)
+.settings/
+.project
+.classpath
+.idea/
+*.iml
+nbproject/
+nb-configuration.xml
