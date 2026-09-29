@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Selección de Asientos - UrbanRide</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="css/asientos.css">
+</head>
+<body class="bg-light">
+
+    <!-- Barra Superior -->
+    <header class="navbar navbar-light bg-white border-bottom shadow-sm px-4 py-2">
+        <div class="container-fluid d-flex justify-content-between align-items-center">
+            <a href="index.html" class="btn btn-outline-secondary btn-sm rounded-pill">
+                <i class="bi bi-arrow-left"></i> Volver a rutas
+            </a>
+            <div class="fw-bold fs-5 text-primary" id="detalleRutaHeader">
+                Urban<span class="text-warning">Ride</span> | Selección de Asientos
+            </div>
+            <div id="usuarioInfo" class="small text-muted fw-bold"></div>
+        </div>
+    </header>
+
+    <main class="container py-4">
+        <div class="row g-4">
+            
+            <!-- Columna Izquierda: Información del Servicio -->
+            <div class="col-12 col-lg-5">
+                <div class="card border-0 rounded-4 shadow-sm p-4 mb-4">
+                    <h5 class="fw-bold mb-1">Servicio Doble Piso VIP</h5>
+                    <p class="text-muted small">Viaje directo con climatización y entretenimiento a bordo</p>
+                    
+                    <img src="https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=600&q=80" 
+                         class="img-fluid rounded-3 mb-3" alt="Bus">
+
+                    <div class="border rounded-3 p-3 bg-light">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted small">Asientos seleccionados (Máx. 5):</span>
+                            <span class="fw-bold text-primary" id="contadorAsientos">0 / 5</span>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2 mb-3" id="listaAsientosSeleccionados">
+                            <span class="text-muted small fst-italic">Ningún asiento marcado</span>
+                        </div>
+                        <div class="border-top pt-2 d-flex justify-content-between align-items-center">
+                            <span class="fw-bold">Total a pagar:</span>
+                            <span class="fs-4 fw-black text-primary" id="precioTotal">S/ 0.00</span>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-warning fw-bold py-2 mt-3 rounded-pill w-100 shadow-sm" id="btnContinuarPago" disabled>
+                        Continuar con la compra
+                    </button>
+                </div>
+            </div>
+
+            <!-- Columna Derecha: Mapa del Bus interactivo -->
+            <div class="col-12 col-lg-7">
+                <div class="card border-0 rounded-4 shadow-sm p-4">
+                    
+                    <!-- Filtros por precio superiores -->
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
+                        <span class="small fw-bold text-muted">Filtrar tarifa:</span>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-dark rounded-pill px-3 filter-btn active" onclick="filtrarPrecio('todos')">Todos los precios</button>
+                            <button class="btn btn-sm btn-outline-danger rounded-pill px-3 filter-btn" onclick="filtrarPrecio(90)">S/ 90</button>
+                            <button class="btn btn-sm btn-outline-success rounded-pill px-3 filter-btn" onclick="filtrarPrecio(115)">S/ 115</button>
+                            <button class="btn btn-sm btn-outline-primary rounded-pill px-3 filter-btn" onclick="filtrarPrecio(125)">S/ 125</button>
+                        </div>
+                    </div>
+
+                    <!-- Contenedor del Bus de Dos Cubiertas -->
+                    <div class="d-flex justify-content-center gap-4 flex-wrap">
+                        
+                        <!-- Primer Piso / Cubierta Inferior -->
+                        <div class="deck-container">
+                            <div class="deck-title mb-3"><i class="bi bi-record-circle"></i> Cubierta inferior (Piso 1)</div>
+                            <div class="deck-body" id="deckPiso1">
+                                <!-- Filas y asientos generados dinámicamente -->
+                            </div>
+                        </div>
+
+                        <!-- Segundo Piso / Cubierta Superior -->
+                        <div class="deck-container">
+                            <div class="deck-title mb-3"><i class="bi bi-record-circle"></i> Cubierta superior (Piso 2)</div>
+                            <div class="deck-body" id="deckPiso2">
+                                <!-- Filas y asientos generados dinámicamente -->
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Leyenda -->
+                    <div class="d-flex justify-content-center gap-4 mt-4 pt-3 border-top small text-muted">
+                        <div><span class="seat-legend available"></span> Disponible</div>
+                        <div><span class="seat-legend selected"></span> Seleccionado</div>
+                        <div><span class="seat-legend occupied"></span> Ocupado</div>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script src="js/asientos.js"></script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+.payment-method-box {
+    border: 2px solid #dee2e6;
+    border-radius: 12px;
+    padding: 12px 6px;
+    text-align: center;
+    cursor: pointer;
+    background: #ffffff;
+    transition: all 0.2s ease-in-out;
+}
+
+.payment-method-box:hover {
+    border-color: #ffc107;
+    transform: translateY(-2px);
+}
+
+.payment-method-box.active {
+    border-color: #0d6efd;
+    background-color: #f0f7ff;
+}
+
+.border-dashed {
+    border-style: dashed !important;
+}
+
+.font-monospace {
+    font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+}
+
+.fw-black {
+    font-weight: 900;
+}

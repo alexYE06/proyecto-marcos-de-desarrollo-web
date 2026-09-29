@@ -32,7 +32,6 @@
 
         .login-tabs .nav-link.active {
             border-color: #0d6efd;
-            /* Color primary de Bootstrap */
             color: #0d6efd !important;
         }
     </style>
@@ -60,9 +59,9 @@
                     <ul class="navbar-nav align-items-center gap-3 mt-3 mt-lg-0 bg-navy-mobile p-3 p-lg-0 rounded-4">
                         <li class="nav-item"><a class="nav-link text-white fw-medium" href="#destinos">Destinos</a></li>
                         <li class="nav-item"><a class="nav-link text-white fw-medium" href="#contacto">Contacto</a></li>
-                        <li class="nav-item">
+                        <li class="nav-item" id="contenedorUsuarioNav">
                             <button class="btn btn-outline-warning btn-sm px-4 rounded-pill fw-bold"
-                                data-bs-toggle="modal" data-bs-target="#loginModal">
+                                data-bs-toggle="modal" data-bs-target="#loginModal" id="btnAbrirModalAuth">
                                 <i class="bi bi-person-circle"></i> Ingresar
                             </button>
                         </li>
@@ -238,12 +237,11 @@
 
                     <!-- Formulario: INICIAR SESIÓN -->
                     <div id="formLoginContainer">
-                        <form id="formLogin"
-                            onsubmit="event.preventDefault(); alert('¡Inicio de sesión exitoso!'); bootstrap.Modal.getInstance(document.getElementById('loginModal')).hide();">
+                        <form id="formLogin">
                             <div class="mb-3">
                                 <label class="form-label small fw-bold text-muted">Correo Electrónico</label>
                                 <input type="email" class="form-control rounded-3 bg-light border-0 py-2"
-                                    placeholder="ejemplo@correo.com" required>
+                                    id="login-correo" placeholder="ejemplo@correo.com" required>
                             </div>
                             <div class="mb-4">
                                 <div class="d-flex justify-content-between">
@@ -252,45 +250,53 @@
                                         contraseña?</a>
                                 </div>
                                 <input type="password" class="form-control rounded-3 bg-light border-0 py-2"
-                                    placeholder="••••••••" required>
+                                    id="login-password" placeholder="••••••••" required>
                             </div>
                             <div class="d-grid mt-4">
-                                <button type="submit" class="btn btn-primary fw-bold rounded-pill py-2">Ingresar al
+                                <button type="submit" id="btnSubmitLogin" class="btn btn-primary fw-bold rounded-pill py-2">Ingresar al
                                     Sistema</button>
                             </div>
                         </form>
                     </div>
 
-                    <!-- Formulario: REGISTRARSE (Oculto por defecto) -->
+                    <!-- Formulario: REGISTRARSE -->
                     <div id="formRegistroContainer" class="d-none">
-                        <form id="formRegistro"
-                            onsubmit="event.preventDefault(); alert('¡Registro exitoso! Ya puedes iniciar sesión.'); cambiarPestañaModal('login');">
+                        <form id="formRegistro">
                             <div class="row g-2 mb-3">
                                 <div class="col-6">
                                     <label class="form-label small fw-bold text-muted">Nombres</label>
                                     <input type="text" class="form-control rounded-3 bg-light border-0 py-2"
-                                        placeholder="Tus nombres" required>
+                                        id="reg-nombre" placeholder="Tus nombres" required>
                                 </div>
                                 <div class="col-6">
                                     <label class="form-label small fw-bold text-muted">Apellidos</label>
                                     <input type="text" class="form-control rounded-3 bg-light border-0 py-2"
-                                        placeholder="Tus apellidos" required>
+                                        id="reg-apellido" placeholder="Tus apellidos" required>
                                 </div>
                             </div>
+
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold text-muted">Número de Documento (DNI)</label>
+                                <input type="text" class="form-control rounded-3 bg-light border-0 py-2"
+                                    id="reg-documento" placeholder="Ej. 62348521" required maxlength="20">
+                            </div>
+
                             <div class="mb-3">
                                 <label class="form-label small fw-bold text-muted">Correo Electrónico</label>
                                 <input type="email" class="form-control rounded-3 bg-light border-0 py-2"
-                                    placeholder="ejemplo@correo.com" required>
+                                    id="reg-correo" placeholder="ejemplo@correo.com" required>
                             </div>
+
                             <div class="mb-4">
                                 <label class="form-label small fw-bold text-muted">Contraseña</label>
                                 <input type="password" class="form-control rounded-3 bg-light border-0 py-2 mb-2"
-                                    placeholder="Crea una contraseña" required>
+                                    id="reg-password" placeholder="Crea una contraseña" required>
                                 <input type="password" class="form-control rounded-3 bg-light border-0 py-2"
-                                    placeholder="Repite la contraseña" required>
+                                    id="reg-password-confirm" placeholder="Repite la contraseña" required>
                             </div>
+
                             <div class="d-grid">
-                                <button type="submit" class="btn btn-warning text-dark fw-bold rounded-pill py-2">Crear
+                                <button type="submit" id="btnSubmitRegistro" class="btn btn-warning text-dark fw-bold rounded-pill py-2">Crear
                                     mi cuenta</button>
                             </div>
                         </form>
@@ -326,7 +332,7 @@
         }
     </script>
 
-    <!-- Tu script de conexión con Spring Boot -->
+    <!-- Conexión con Spring Boot -->
     <script src="js/app.js"></script>
 </body>
 

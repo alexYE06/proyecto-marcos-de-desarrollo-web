@@ -6,5 +6,4 @@ import pe.transporte.model.Terminal;
 
 @Repository
 public interface TerminalRepository extends JpaRepository<Terminal, Integer> {
-    // JpaRepository ya incluye métodos listos como findAll() para traer todas las terminales
 }

@@ -1,0 +1,95 @@
+.deck-container {
+    background-color: #f8f9fa;
+    border: 2px solid #e2e8f0;
+    border-radius: 20px;
+    padding: 16px;
+    min-width: 190px;
+}
+
+.deck-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #495057;
+    text-align: center;
+}
+
+.deck-body {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    justify-content: center;
+}
+
+/* Formato de la butaca */
+.seat {
+    width: 36px;
+    height: 38px;
+    border-radius: 8px;
+    border: 2px solid #b0b8c1;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #495057;
+    cursor: pointer;
+    position: relative;
+    user-select: none;
+    transition: all 0.15s ease-in-out;
+}
+
+/* Indicadores de tarifa (Puntos de colores) */
+.seat::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+.seat[data-precio="90"]::after { background-color: #dc3545; }
+.seat[data-precio="115"]::after { background-color: #198754; }
+.seat[data-precio="125"]::after { background-color: #0d6efd; }
+
+/* Estados del asiento */
+.seat:hover:not(.occupied) {
+    transform: scale(1.08);
+    border-color: #ffc107;
+}
+
+.seat.selected {
+    background-color: #ffc107 !important;
+    border-color: #d39e00 !important;
+    color: #212529 !important;
+}
+
+.seat.occupied {
+    background-color: #e9ecef;
+    border-color: #ced4da;
+    color: #adb5bd;
+    cursor: not-allowed;
+}
+
+.seat.dimmed {
+    opacity: 0.2;
+    pointer-events: none;
+}
+
+.corredor {
+    width: 14px;
+}
+
+/* Leyenda inferior */
+.seat-legend {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    vertical-align: middle;
+    margin-right: 4px;
+}
+.seat-legend.available { background: #fff; border: 2px solid #b0b8c1; }
+.seat-legend.selected { background: #ffc107; border: 2px solid #d39e00; }
+.seat-legend.occupied { background: #e9ecef; border: 2px solid #ced4da; }

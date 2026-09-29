@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boleta Electrónica - UrbanRide</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <!-- Estilo propio de la Boleta -->
+    <link rel="stylesheet" href="css/boleta.css">
+</head>
+<body>
+
+    <!-- Barra de acciones flotante (No visible en la impresión/PDF) -->
+    <div class="no-print bar-actions bg-dark text-white p-3 d-flex justify-content-between align-items-center position-sticky top-0 shadow">
+        <span class="fw-bold"><i class="bi bi-file-earmark-pdf-fill text-danger fs-5"></i> Comprobante Electrónico</span>
+        <div>
+            <button class="btn btn-warning btn-sm fw-bold px-3 me-2" onclick="imprimirBoletaPDF()">
+                <i class="bi bi-printer"></i> Imprimir / Guardar en PDF
+            </button>
+            <button class="btn btn-outline-light btn-sm px-3" onclick="window.close()">
+                Cerrar
+            </button>
+        </div>
+    </div>
+
+    <!-- Contenedor Hoja A4 / PDF -->
+    <div class="pdf-container">
+        
+        <!-- Encabezado de la Boleta -->
+        <div class="row align-items-center mb-4">
+            <div class="col-7">
+                <h2 class="fw-bold text-primary mb-1">Urban<span class="text-warning">Ride</span> S.A.C.</h2>
+                <div class="small text-muted">Transporte Terrestre Interprovincial de Pasajeros</div>
+                <div class="small text-muted">Av. Javier Prado Este 1093 - San Isidro, Lima</div>
+                <div class="small text-muted">Central Telefónica: +51 999 888 777</div>
+                <div class="small text-muted">contacto@urbanride.pe</div>
+            </div>
+            <div class="col-5">
+                <div class="empresa-ruc-box">
+                    <h6 class="fw-bold mb-1">R.U.C. 20608945123</h6>
+                    <h5 class="fw-bold text-danger my-1" id="tipoDocTitulo">BOLETA ELECTRÓNICA</h5>
+                    <h6 class="fw-bold mb-0" id="numSerieComp">B001-00000000</h6>
+                </div>
+            </div>
+        </div>
+
+        <hr>
+
+        <!-- Datos del Cliente y Emisión -->
+        <div class="row g-2 mb-4 small">
+            <div class="col-7">
+                <div><strong>Señor(es):</strong> <span id="clienteNombre">-</span></div>
+                <div><strong>Tipo y N° Doc:</strong> <span id="clienteDoc">-</span></div>
+                <div><strong>Correo Electrónico:</strong> <span id="clienteCorreo">-</span></div>
+                <div><strong>Teléfono:</strong> <span id="clienteTelefono">-</span></div>
+            </div>
+            <div class="col-5">
+                <div><strong>Fecha de emisión:</strong> <span id="compFecha">-</span></div>
+                <div><strong>Forma de pago:</strong> <span id="compPago">-</span></div>
+                <div><strong>Moneda:</strong> SOLES (PEN)</div>
+                <div><strong>Cód. Reserva:</strong> <span class="badge bg-dark" id="compReserva">-</span></div>
+            </div>
+        </div>
+
+        <!-- Tabla de Pasajes y Asientos -->
+        <div class="table-responsive mb-4">
+            <table class="table table-bordered table-comprobante">
+                <thead>
+                    <tr>
+                        <th class="text-center" style="width: 50px;">Cant.</th>
+                        <th>Descripción del Servicio / Asiento</th>
+                        <th>Pasajero</th>
+                        <th class="text-center">Doc. Identidad</th>
+                        <th class="text-end" style="width: 110px;">Importe</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaItemsBoleta">
+                    <!-- Filas pobladas dinámicamente con JS -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Totales y Código QR -->
+        <div class="row align-items-end mb-4">
+            <div class="col-7 d-flex align-items-center gap-3">
+                <div class="border p-2 bg-white rounded text-center">
+                    <i class="bi bi-qr-code" style="font-size: 4rem;"></i>
+                    <div style="font-size: 0.65rem;" class="text-muted">Representación gráfica digital</div>
+                </div>
+                <div class="small text-muted">
+                    <div>Código hash: <code id="codigoHash">d9a8f23c109...</code></div>
+                    <div>Autorizado mediante Resolución de SUNAT</div>
+                </div>
+            </div>
+            <div class="col-5">
+                <table class="table table-sm border-0 small mb-0">
+                    <tr>
+                        <td class="text-end text-muted">Op. Gravada:</td>
+                        <td class="text-end fw-bold" id="totalSubtotal">S/ 0.00</td>
+                    </tr>
+                    <tr>
+                        <td class="text-end text-muted">I.G.V. (18%):</td>
+                        <td class="text-end fw-bold" id="totalIgv">S/ 0.00</td>
+                    </tr>
+                    <tr id="filaDescuento" class="d-none">
+                        <td class="text-end text-success">Descuento:</td>
+                        <td class="text-end fw-bold text-success" id="totalDescuento">- S/ 0.00</td>
+                    </tr>
+                    <tr class="fs-5 border-top">
+                        <td class="text-end fw-bold text-dark">TOTAL:</td>
+                        <td class="text-end fw-bold text-primary" id="totalFinal">S/ 0.00</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="border-top pt-3 text-center text-muted" style="font-size: 0.75rem;">
+            Conserve este comprobante para abordar la unidad. ¡Gracias por viajar con UrbanRide!
+        </div>
+
+    </div>
+
+    <!-- Script de lógica de la boleta -->
+    <script src="js/boleta.js"></script>
+</body>
+</html>

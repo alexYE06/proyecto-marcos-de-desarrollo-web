@@ -1,0 +1,28 @@
+.card-pasajero {
+    border: 1px solid #e9ecef;
+    border-radius: 14px;
+    background-color: #fafbfc;
+    transition: all 0.2s ease;
+}
+
+.card-pasajero:hover {
+    border-color: #ced4da;
+    background-color: #ffffff;
+}
+
+.badge-asiento {
+    background-color: #061c36;
+    color: #ffffff;
+    font-size: 0.85rem;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-weight: 700;
+}
+
+.font-monospace {
+    font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+}
+
+.fw-black {
+    font-weight: 900;
+}

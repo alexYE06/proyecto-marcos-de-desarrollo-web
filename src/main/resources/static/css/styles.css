@@ -47,3 +47,41 @@ body {
 .footer-section {
     background-color: var(--primary-navy);
 }
+
+/* Tarjeta de horario de viaje */
+.ticket-card {
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ticket-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+}
+
+.ticket-service-badge {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #495057;
+}
+
+.ticket-time {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: #212529;
+}
+
+.ticket-price {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: #0d6efd;
+}
+
+.trip-divider {
+    position: relative;
+    border-top: 2px dashed #dee2e6;
+    margin: 10px 0;
+}

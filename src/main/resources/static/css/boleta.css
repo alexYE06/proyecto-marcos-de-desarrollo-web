@@ -1,0 +1,52 @@
+body {
+    background-color: #525659;
+    font-family: Arial, sans-serif;
+    color: #333;
+    margin: 0;
+    padding: 0;
+}
+
+.pdf-container {
+    max-width: 800px;
+    background: #ffffff;
+    margin: 30px auto;
+    padding: 40px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    border-radius: 6px;
+}
+
+.empresa-ruc-box {
+    border: 2px solid #061c36;
+    border-radius: 8px;
+    text-align: center;
+    padding: 12px;
+}
+
+.table-comprobante th {
+    background-color: #061c36 !important;
+    color: #ffffff !important;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+}
+
+.table-comprobante td {
+    font-size: 0.85rem;
+    vertical-align: middle;
+}
+
+/* Reglas de impresión directa en formato A4 / PDF */
+@media print {
+    body {
+        background: #ffffff;
+    }
+    .pdf-container {
+        box-shadow: none;
+        margin: 0;
+        padding: 0;
+        max-width: 100%;
+        border-radius: 0;
+    }
+    .no-print {
+        display: none !important;
+    }
+}
