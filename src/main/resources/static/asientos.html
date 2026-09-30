@@ -33,7 +33,7 @@
                     <h5 class="fw-bold mb-1">Servicio Doble Piso VIP</h5>
                     <p class="text-muted small">Viaje directo con climatización y entretenimiento a bordo</p>
                     
-                    <img src="img/bus.jpg" 
+                    <img src="https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=600&q=80" 
                          class="img-fluid rounded-3 mb-3" alt="Bus">
 
                     <div class="border rounded-3 p-3 bg-light">
@@ -63,7 +63,6 @@
                     <!-- Filtros por precio superiores -->
                     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
                         <span class="small fw-bold text-muted">Filtrar tarifa:</span>
-                        <div class="d-flex gap-2">
                             <button class="btn btn-sm btn-dark rounded-pill px-3 filter-btn active" onclick="filtrarPrecio('todos')">Todos los precios</button>
                             <button class="btn btn-sm btn-outline-danger rounded-pill px-3 filter-btn" onclick="filtrarPrecio(90)">S/ 90</button>
                             <button class="btn btn-sm btn-outline-success rounded-pill px-3 filter-btn" onclick="filtrarPrecio(115)">S/ 115</button>
@@ -93,8 +92,10 @@
                     </div>
 
                     <!-- Leyenda -->
-                    <div class="d-flex justify-content-center gap-4 mt-4 pt-3 border-top small text-muted">
-                        <div><span class="seat-legend available"></span> Disponible</div>
+                    <div class="d-flex flex-wrap justify-content-center gap-3 mt-4 pt-3 border-top small text-muted">
+                        <div><span class="seat-legend p90"></span> S/ 90</div>
+                        <div><span class="seat-legend p115"></span> S/ 115</div>
+                        <div><span class="seat-legend p125"></span> S/ 125</div>
                         <div><span class="seat-legend selected"></span> Seleccionado</div>
                         <div><span class="seat-legend occupied"></span> Ocupado</div>
                     </div>
@@ -104,6 +105,16 @@
 
         </div>
     </main>
+
+    <!-- Ayudante con tip (esquina inferior derecha) -->
+    <div class="ayudante" id="ayudante" role="note" aria-live="polite">
+        <div class="ayudante-globo">
+            <button type="button" class="ayudante-cerrar" id="ayudanteCerrar" aria-label="Cerrar consejo">&times;</button>
+            <span class="ayudante-titulo">Tip</span>
+            <p>¡Recuerda escoger bien tus asientos, añañaña!</p>
+        </div>
+        <img src="img/ayudante.png" class="ayudante-img" alt="Asistente con un consejo">
+    </div>
 
     <script src="js/asientos.js"></script>
 </body>

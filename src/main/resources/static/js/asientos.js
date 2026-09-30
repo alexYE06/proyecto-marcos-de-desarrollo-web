@@ -53,20 +53,47 @@ document.addEventListener("DOMContentLoaded", () => {
     renderizarPiso('deckPiso2', asientosDataPiso2);
 });
 
+// Dibujo de la butaca (el color lo pone el CSS según la tarifa y el estado)
+const SVG_BUTACA = `<svg viewBox="0 0 40 44" aria-hidden="true">
+    <rect x="1.5" y="17" width="8" height="21" rx="4" fill="currentColor"/>
+    <rect x="30.5" y="17" width="8" height="21" rx="4" fill="currentColor"/>
+    <rect x="1.5" y="17" width="8" height="21" rx="4" class="sombra"/>
+    <rect x="30.5" y="17" width="8" height="21" rx="4" class="sombra"/>
+    <rect x="7" y="2" width="26" height="26" rx="10" fill="currentColor"/>
+    <rect x="8" y="24" width="24" height="16" rx="6" fill="currentColor"/>
+    <rect x="8" y="24" width="24" height="16" rx="6" class="sombra"/>
+</svg>`;
+
 // Renderizar las butacas
 function renderizarPiso(containerId, lista) {
     const contenedor = document.getElementById(containerId);
     contenedor.innerHTML = '';
 
-    lista.forEach(asiento => {
+    lista.forEach((asiento, i) => {
+        // Pasillo entre las 2 columnas de la izquierda y las 2 de la derecha
+        if (i % 4 === 2) {
+            const pasillo = document.createElement('div');
+            pasillo.className = 'corredor';
+            contenedor.appendChild(pasillo);
+        }
+
         const div = document.createElement('div');
         div.className = `seat ${asiento.ocupado ? 'occupied' : ''}`;
         div.dataset.num = asiento.num;
         div.dataset.precio = asiento.precio;
-        div.innerText = asiento.num;
+        div.setAttribute('role', 'button');
+        div.setAttribute('aria-label', `Asiento ${asiento.num}, S/ ${asiento.precio}${asiento.ocupado ? ', ocupado' : ''}`);
+        div.innerHTML = `${SVG_BUTACA}<span class="seat-num">${asiento.num}</span>`;
 
         if (!asiento.ocupado) {
+            div.tabIndex = 0;
             div.addEventListener('click', () => toggleAsiento(asiento, div));
+            div.addEventListener('keydown', (e) => {
+                if ((e.key === 'Enter' || e.key === ' ') && !div.classList.contains('dimmed')) {
+                    e.preventDefault();
+                    toggleAsiento(asiento, div);
+                }
+            });
         }
 
         contenedor.appendChild(div);
@@ -157,3 +184,12 @@ if (btnPago) {
         window.location.href = 'pasajeros.html';
     });
 }
+
+// Ayudante: cerrar el globo con la X (solo por esta visita a la página)
+document.addEventListener("DOMContentLoaded", () => {
+    const ayudante = document.getElementById("ayudante");
+    const cerrar = document.getElementById("ayudanteCerrar");
+    if (ayudante && cerrar) {
+        cerrar.addEventListener("click", () => ayudante.classList.add("oculto"));
+    }
+});
