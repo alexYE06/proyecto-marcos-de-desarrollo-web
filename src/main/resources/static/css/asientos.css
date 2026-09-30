@@ -17,7 +17,7 @@
     --seat-w: 38px;
     display: grid;
     /* 2 asientos | pasillo | 2 asientos */
-    grid-template-columns: repeat(2, var(--seat-w)) 14px repeat(2, var(--seat-w));
+    grid-template-columns: repeat(2, var(--seat-w)) 26px repeat(2, var(--seat-w));
     gap: 8px 6px;
     justify-content: center;
     justify-items: center;
@@ -105,8 +105,46 @@
 }
 
 .corredor {
-    width: 14px;
+    width: 26px;
+    color: #adb5bd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
+
+.corredor svg { width: 22px; height: 22px; display: block; }
+
+/* Elementos del bus que no son asiento (baño, escalera, volante) */
+.celda {
+    width: var(--seat-w);
+    height: calc(var(--seat-w) * 1.1);
+    color: #adb5bd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.celda svg { width: 100%; height: 100%; display: block; }
+.celda svg[aria-label="Escalera"] { width: 70%; height: 70%; }
+
+/* Zona de equipaje (ocupa todo el ancho del piso) */
+.zona-equipaje {
+    grid-column: 1 / -1;
+    width: 100%;
+    height: 44px;
+    margin-top: 4px;
+    border: 2px dashed #adb5bd;
+    border-radius: 10px;
+    color: #6c757d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.zona-equipaje svg { width: 22px; height: 22px; display: block; }
 
 /* Leyenda inferior */
 .seat-legend {
