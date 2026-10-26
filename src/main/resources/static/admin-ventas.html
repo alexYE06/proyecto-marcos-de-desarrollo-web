@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin: Registrar Ventas - UrbanRide</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <!-- Tu CSS personalizado -->
+    <link rel="stylesheet" href="css/styles.css">
+    <!-- Estilos originales reutilizados: asientos (bus) y pago (métodos de pago) -->
+    <link rel="stylesheet" href="css/asientos.css">
+    <link rel="stylesheet" href="css/pago.css">
+    <!-- Estilos del panel de administrador -->
+    <link rel="stylesheet" href="css/admin.css">
+</head>
+<body class="bg-light">
+
+    <!-- Barra de Navegación Superior (igual a pago.html) -->
+    <header class="navbar navbar-dark bg-dark px-4 py-2 shadow-sm">
+        <div class="container-fluid d-flex justify-content-between align-items-center">
+            <a href="index.html" class="navbar-brand fw-bold text-white fs-4">
+                <i class="bi bi-bus-front text-warning"></i> Urban<span class="text-warning">Ride</span>
+                <span class="badge-admin ms-2">ADMIN</span>
+            </a>
+            <div class="text-white-50 small d-none d-md-block">
+                <i class="bi bi-shield-lock text-warning"></i> Panel de administración
+            </div>
+            <div id="usuarioHeader" class="text-white small fw-bold"></div>
+        </div>
+    </header>
+
+    <div class="admin-layout">
+
+        <!-- Sidebar -->
+        <aside class="admin-sidebar">
+            <div class="sidebar-title fw-bold">Administración</div>
+            <nav class="nav flex-column gap-1">
+                <a class="nav-link active" href="admin-ventas.html"><i class="bi bi-receipt"></i> Registrar ventas</a>
+                <a class="nav-link" href="index.html"><i class="bi bi-house-door"></i> Ir al sitio</a>
+                <a class="nav-link" href="#" id="btnCerrarSesion"><i class="bi bi-box-arrow-right text-danger"></i> Cerrar sesión</a>
+            </nav>
+        </aside>
+
+        <!-- Contenido -->
+        <div class="flex-grow-1 d-flex flex-column" style="min-width: 0;">
+            <main class="admin-content">
+
+                <div class="mb-4">
+                    <h3 class="fw-bold mb-1">Registrar ventas</h3>
+                    <p class="text-muted small mb-0">Elige los asientos, la forma de pago y registra la venta.</p>
+                </div>
+
+                <!-- Resumen -->
+                <div class="row g-3 mb-4">
+                    <div class="col-12 col-md-6">
+                        <div class="card border-0 rounded-4 shadow-sm p-3 stat-card">
+                            <div class="small fw-bold text-muted">Ventas registradas</div>
+                            <div class="fs-3 fw-black text-dark" id="statCantidadVentas">0</div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <div class="card border-0 rounded-4 shadow-sm p-3 stat-card">
+                            <div class="small fw-bold text-muted">Total vendido</div>
+                            <div class="fs-3 fw-black text-primary" id="statTotalVendido">S/ 0.00</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== NUEVA VENTA (todo en la misma página) ===== -->
+                <form id="formVenta" novalidate>
+                    <div class="row g-4 mb-4">
+
+                        <!-- Izquierda: resumen de la venta (panel de asientos original) -->
+                        <div class="col-12 col-xl-5">
+                            <div class="card border-0 rounded-4 shadow-sm p-4 h-100">
+                                <h5 class="fw-bold mb-1">Nueva venta</h5>
+                                <p class="text-muted small">Servicio Doble Piso VIP · climatización y entretenimiento a bordo</p>
+
+                                <img src="https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=600&q=80"
+                                     class="img-fluid rounded-3 mb-3" alt="Bus">
+
+                                <div class="border rounded-3 p-3 bg-light mb-3">
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted small">Asientos seleccionados (Máx. 5):</span>
+                                        <span class="fw-bold text-primary" id="contadorAsientos">0 / 5</span>
+                                    </div>
+                                    <div class="d-flex flex-wrap gap-2 mb-3" id="listaAsientosSeleccionados">
+                                        <span class="text-muted small fst-italic">Ningún asiento marcado</span>
+                                    </div>
+                                    <div class="border-top pt-2 d-flex justify-content-between align-items-center">
+                                        <span class="fw-bold">Total a pagar:</span>
+                                        <span class="fs-4 fw-black text-primary" id="precioTotal">S/ 0.00</span>
+                                    </div>
+                                </div>
+
+                                <div class="row g-3">
+                                    <div class="col-6">
+                                        <label class="form-label small fw-bold text-muted" for="ventaCantidad">Cantidad</label>
+                                        <input type="number" class="form-control bg-light rounded-3" id="ventaCantidad" value="0" readonly>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small fw-bold text-muted" for="ventaPrecioTotal">Precio Total (S/)</label>
+                                        <input type="text" class="form-control bg-light rounded-3" id="ventaPrecioTotal" value="0.00" readonly>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label small fw-bold text-muted" for="ventaFecha">Fecha</label>
+                                        <input type="date" class="form-control bg-light rounded-3" id="ventaFecha" required>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Derecha: mapa del bus (panel de asientos original) -->
+                        <div class="col-12 col-xl-7">
+                            <div class="card border-0 rounded-4 shadow-sm p-4 h-100">
+
+                                <!-- Filtros por precio -->
+                                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
+                                    <span class="small fw-bold text-muted">Filtrar tarifa:</span>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <button type="button" class="btn btn-sm btn-dark rounded-pill px-3 filter-btn active" data-tarifa="todos">Todos los precios</button>
+                                        <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 filter-btn" data-tarifa="90">S/ 90</button>
+                                        <button type="button" class="btn btn-sm btn-outline-success rounded-pill px-3 filter-btn" data-tarifa="115">S/ 115</button>
+                                        <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 filter-btn" data-tarifa="125">S/ 125</button>
+                                    </div>
+                                </div>
+
+                                <!-- Bus de dos cubiertas -->
+                                <div class="d-flex justify-content-center gap-4 flex-wrap">
+                                    <div class="deck-container">
+                                        <div class="deck-title mb-3"><i class="bi bi-record-circle"></i> Cubierta inferior (Piso 1)</div>
+                                        <div class="deck-body" id="deckPiso1"></div>
+                                    </div>
+                                    <div class="deck-container">
+                                        <div class="deck-title mb-3"><i class="bi bi-record-circle"></i> Cubierta superior (Piso 2)</div>
+                                        <div class="deck-body" id="deckPiso2"></div>
+                                    </div>
+                                </div>
+
+                                <!-- Leyenda -->
+                                <div class="d-flex flex-wrap justify-content-center gap-3 mt-4 pt-3 border-top small text-muted">
+                                    <div><span class="seat-legend p90"></span> S/ 90</div>
+                                    <div><span class="seat-legend p115"></span> S/ 115</div>
+                                    <div><span class="seat-legend p125"></span> S/ 125</div>
+                                    <div><span class="seat-legend selected"></span> Seleccionado</div>
+                                    <div><span class="seat-legend occupied"></span> Ocupado</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Forma de pago (sección original de pago.html) -->
+                    <div class="card border-0 rounded-4 shadow-sm p-4 mb-4">
+                        <h5 class="fw-bold mb-3">Selecciona la forma de pago</h5>
+
+                        <div class="row g-2 mb-4">
+                            <div class="col-6 col-md-3">
+                                <div class="payment-method-box active" data-metodo="TARJETA">
+                                    <i class="bi bi-credit-card-2-front fs-3 text-primary"></i>
+                                    <span class="d-block small fw-bold mt-1">Tarjeta</span>
+                                    <small class="text-muted" style="font-size: 0.65rem;">Débito / Crédito</small>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="payment-method-box" data-metodo="PAYPAL">
+                                    <i class="bi bi-paypal fs-3 text-primary"></i>
+                                    <span class="d-block small fw-bold mt-1">PayPal</span>
+                                    <small class="text-muted" style="font-size: 0.65rem;">Internacional</small>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="payment-method-box" data-metodo="YAPE">
+                                    <i class="bi bi-qr-code fs-3" style="color: #720e9e;"></i>
+                                    <span class="d-block small fw-bold mt-1">Yape</span>
+                                    <small class="text-muted" style="font-size: 0.65rem;">Billetera Móvil</small>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="payment-method-box" data-metodo="EFECTIVO">
+                                    <i class="bi bi-cash-stack fs-3 text-success"></i>
+                                    <span class="d-block small fw-bold mt-1">PagoEfectivo</span>
+                                    <small class="text-muted" style="font-size: 0.65rem;">Banca / Agentes</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Detalle dinámico según el método elegido (se llena con JS) -->
+                        <div id="contenedorDetallePago"></div>
+
+                        <div id="mensajeForm" class="small mt-3" role="status"></div>
+
+                        <div class="d-grid mt-4">
+                            <button type="submit" class="btn btn-warning py-3 fw-bold rounded-pill shadow-sm fs-5" id="btnRegistrarVenta">
+                                <span class="spinner-border spinner-border-sm d-none" id="spinnerRegistro"></span>
+                                Registrar venta por <span id="btnMontoPagar">S/ 0.00</span> <i class="bi bi-chevron-double-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- ===== HISTORIAL DE VENTAS ===== -->
+                <div class="card border-0 rounded-4 shadow-sm p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="fw-bold mb-0">Historial de ventas</h5>
+                        <button type="button" class="btn btn-outline-dark btn-sm fw-bold rounded-pill px-3" id="btnRecargar">
+                            <i class="bi bi-arrow-clockwise"></i> Actualizar
+                        </button>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-admin mb-0">
+                            <thead>
+                                <tr>
+                                    <th class="text-center" style="width: 60px;">N°</th>
+                                    <th>Asientos</th>
+                                    <th class="text-center" style="width: 80px;">Cant.</th>
+                                    <th class="text-center">Pago</th>
+                                    <th class="text-center">Fecha</th>
+                                    <th class="text-end" style="width: 120px;">Precio Total</th>
+                                    <th class="text-center" style="width: 110px;">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaVentas">
+                                <tr><td colspan="7" class="text-center text-muted py-4">Cargando ventas...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </main>
+
+            <!-- Footer (igual a index.html) -->
+            <footer class="footer-section py-5 text-white mt-auto bg-dark">
+                <div class="container text-center text-md-start">
+                    <div class="row g-4 align-items-center">
+                        <div class="col-md-4 text-center text-md-start">
+                            <h3 class="fw-bold mb-2">Urban<span class="text-warning">Ride</span></h3>
+                            <p class="text-white-50 small">Conectando destinos y acortando distancias con los más altos
+                                estándares de seguridad vial en el Perú.</p>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <h6 class="text-white fw-bold mb-3">Rutas Principales</h6>
+                            <p class="mb-1 text-white-50 small">Lima – Arequipa</p>
+                            <p class="mb-1 text-white-50 small">Lima – Huancayo</p>
+                            <p class="mb-1 text-white-50 small">Lima – Ica</p>
+                        </div>
+                        <div class="col-md-4 text-center text-md-end">
+                            <h6 class="text-white fw-bold mb-3">Soporte y Ventas</h6>
+                            <p class="mb-1 text-white-50 small"><i class="bi bi-whatsapp text-success"></i> +51 999 888 777</p>
+                            <p class="mb-1 text-white-50 small"><i class="bi bi-envelope"></i> contacto@urbanride.pe</p>
+                        </div>
+                    </div>
+                    <hr class="border-secondary my-4">
+                    <div class="text-center text-white-50 small">
+                        <p class="mb-0">&copy; 2026 UrbanRide. Todos los derechos reservados.</p>
+                    </div>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Lógica del módulo -->
+    <script src="js/admin-ventas.js"></script>
+</body>
+</html>

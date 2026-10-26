@@ -48,9 +48,9 @@ public class UsuarioController {
             if (usuario.getTipoDocumento() == null || usuario.getTipoDocumento().isEmpty()) {
                 usuario.setTipoDocumento("DNI");
             }
-            if (usuario.getRol() == null || usuario.getRol().isEmpty()) {
-                usuario.setRol("CLIENTE");
-            }
+            // SEGURIDAD: el registro público SIEMPRE crea clientes. Nunca se acepta el rol enviado
+            // por el navegador (si no, cualquiera podría registrarse como ADMIN).
+            usuario.setRol("CLIENTE");
             usuario.setActivo(true);
 
             // 4. Encriptar contraseña

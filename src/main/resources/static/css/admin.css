@@ -1,0 +1,103 @@
+/* ====== Panel de Administrador UrbanRide ======
+   Depende de: css/styles.css (variables y footer), css/asientos.css (bus y asientos)
+   y css/pago.css (métodos de pago). Aquí solo va lo propio del panel. */
+
+.admin-layout {
+    display: flex;
+    min-height: calc(100vh - 56px);
+}
+
+/* Sidebar navy */
+.admin-sidebar {
+    width: 240px;
+    flex-shrink: 0;
+    background-color: var(--primary-navy);
+    color: #ffffff;
+    padding: 20px 12px;
+}
+
+.admin-sidebar .sidebar-title {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.5);
+    padding: 0 12px 8px;
+}
+
+.admin-sidebar .nav-link {
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 600;
+    font-size: 0.9rem;
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.admin-sidebar .nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+}
+
+.admin-sidebar .nav-link.active {
+    background-color: var(--accent-yellow);
+    color: var(--primary-navy);
+}
+
+.admin-content {
+    flex: 1;
+    min-width: 0;
+    padding: 24px;
+}
+
+.badge-admin {
+    background-color: var(--accent-yellow);
+    color: var(--primary-navy);
+    font-weight: 800;
+    font-size: 0.7rem;
+    border-radius: 8px;
+    padding: 4px 8px;
+}
+
+/* Tarjetas de resumen */
+.stat-card {
+    border-left: 5px solid var(--accent-yellow) !important;
+}
+
+/* Tabla (idéntica a .table-comprobante de boleta.css) */
+.table-admin th {
+    background-color: #061c36 !important;
+    color: #ffffff !important;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+}
+
+.table-admin td {
+    font-size: 0.85rem;
+    vertical-align: middle;
+}
+
+/* Móvil: el sidebar pasa arriba como barra horizontal */
+@media (max-width: 991.98px) {
+    .admin-layout {
+        flex-direction: column;
+    }
+
+    .admin-sidebar {
+        width: 100%;
+        padding: 10px 12px;
+    }
+
+    .admin-sidebar .sidebar-title {
+        display: none;
+    }
+
+    .admin-sidebar .nav {
+        flex-direction: row !important;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .admin-content {
+        padding: 16px;
+    }
+}
