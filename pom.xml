@@ -8,7 +8,7 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>3.2.3</version>
-        <relativePath/> 
+        <relativePath/>
     </parent>
 
     <groupId>pe.transporte</groupId>
@@ -20,10 +20,22 @@
     </properties>
 
     <dependencies>
-        <!-- Framework Web (APIs REST) -->
+        <!-- Framework Web (APIs REST + MVC) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Motor de plantillas SSR (Rúbrica: Thymeleaf) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-thymeleaf</artifactId>
+        </dependency>
+
+        <!-- Seguridad, Autenticación y Autorización por Roles (Rúbrica: Spring Security + JWT) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
 
         <!-- Persistencia y Base de Datos (JPA/Hibernate) -->
@@ -51,10 +63,15 @@
             <version>3.5.3</version>
         </dependency>
 
-        <!-- Librería para pruebas unitarias -->
+        <!-- Pruebas unitarias y de seguridad -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

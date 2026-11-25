@@ -1,5 +1,6 @@
 package pe.transporte.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -30,6 +31,7 @@ public class Usuario {
     @Column(length = 15)
     private String telefono;
 
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     @Column(name = "contrasena_hash", length = 255, nullable = false)
     private String contrasenaHash;
 
@@ -45,92 +47,40 @@ public class Usuario {
     public Usuario() {
     }
 
-    // Getters y Setters
-    public Integer getIdUsuario() {
-        return idUsuario;
+    public String getNombreCompleto() {
+        return ((nombre != null ? nombre : "") + " " + (apellido != null ? apellido : "")).trim();
     }
 
-    public void setIdUsuario(Integer idUsuario) {
-        this.idUsuario = idUsuario;
-    }
+    public Integer getIdUsuario() { return idUsuario; }
+    public void setIdUsuario(Integer idUsuario) { this.idUsuario = idUsuario; }
 
-    public String getNombre() {
-        return nombre;
-    }
+    public String getNombre() { return nombre; }
+    public void setNombre(String nombre) { this.nombre = nombre; }
 
-    public void setNombre(String nombre) {
-        this.nombre = nombre;
-    }
+    public String getApellido() { return apellido; }
+    public void setApellido(String apellido) { this.apellido = apellido; }
 
-    public String getApellido() {
-        return apellido;
-    }
+    public String getTipoDocumento() { return tipoDocumento; }
+    public void setTipoDocumento(String tipoDocumento) { this.tipoDocumento = tipoDocumento; }
 
-    public void setApellido(String apellido) {
-        this.apellido = apellido;
-    }
+    public String getNumeroDocumento() { return numeroDocumento; }
+    public void setNumeroDocumento(String numeroDocumento) { this.numeroDocumento = numeroDocumento; }
 
-    public String getTipoDocumento() {
-        return tipoDocumento;
-    }
+    public String getCorreo() { return correo; }
+    public void setCorreo(String correo) { this.correo = correo; }
 
-    public void setTipoDocumento(String tipoDocumento) {
-        this.tipoDocumento = tipoDocumento;
-    }
+    public String getTelefono() { return telefono; }
+    public void setTelefono(String telefono) { this.telefono = telefono; }
 
-    public String getNumeroDocumento() {
-        return numeroDocumento;
-    }
+    public String getContrasenaHash() { return contrasenaHash; }
+    public void setContrasenaHash(String contrasenaHash) { this.contrasenaHash = contrasenaHash; }
 
-    public void setNumeroDocumento(String numeroDocumento) {
-        this.numeroDocumento = numeroDocumento;
-    }
+    public String getRol() { return rol; }
+    public void setRol(String rol) { this.rol = rol; }
 
-    public String getCorreo() {
-        return correo;
-    }
+    public Boolean getActivo() { return activo != null ? activo : true; }
+    public void setActivo(Boolean activo) { this.activo = activo; }
 
-    public void setCorreo(String correo) {
-        this.correo = correo;
-    }
-
-    public String getTelefono() {
-        return telefono;
-    }
-
-    public void setTelefono(String telefono) {
-        this.telefono = telefono;
-    }
-
-    public String getContrasenaHash() {
-        return contrasenaHash;
-    }
-
-    public void setContrasenaHash(String contrasenaHash) {
-        this.contrasenaHash = contrasenaHash;
-    }
-
-    public String getRol() {
-        return rol;
-    }
-
-    public void setRol(String rol) {
-        this.rol = rol;
-    }
-
-    public Boolean getActivo() {
-        return activo;
-    }
-
-    public void setActivo(Boolean activo) {
-        this.activo = activo;
-    }
-
-    public LocalDateTime getFechaRegistro() {
-        return fechaRegistro;
-    }
-
-    public void setFechaRegistro(LocalDateTime fechaRegistro) {
-        this.fechaRegistro = fechaRegistro;
-    }
+    public LocalDateTime getFechaRegistro() { return fechaRegistro; }
+    public void setFechaRegistro(LocalDateTime fechaRegistro) { this.fechaRegistro = fechaRegistro; }
 }

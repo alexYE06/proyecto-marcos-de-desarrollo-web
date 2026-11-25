@@ -59,10 +59,10 @@
     pointer-events: none;
 }
 
-/* Color según la tarifa */
-.seat[data-precio="90"]  { --seat-color: #e5484d; }
-.seat[data-precio="115"] { --seat-color: #12a66b; }
-.seat[data-precio="125"] { --seat-color: #2f6fed; }
+/* Color según la categoría / tarifa del asiento */
+.seat[data-nivel="piso2"], .seat[data-precio="90"]  { --seat-color: #e5484d; }
+.seat[data-nivel="vip"], .seat[data-precio="115"] { --seat-color: #12a66b; }
+.seat[data-nivel="panoramico"], .seat[data-precio="125"] { --seat-color: #2f6fed; }
 
 /* Estados del asiento */
 .seat:hover:not(.occupied) {

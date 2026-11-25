@@ -1,11 +1,6 @@
 package pe.transporte.model;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 
 @Entity
 @Table(name = "terminal")
@@ -16,22 +11,27 @@ public class Terminal {
     @Column(name = "id_terminal")
     private Integer idTerminal;
 
-    @Column(name = "nombre", nullable = false)
+    @Column(name = "nombre", nullable = false, length = 120)
     private String nombre;
 
-    @Column(name = "ciudad", nullable = false)
+    @Column(name = "ciudad", nullable = false, length = 80)
     private String ciudad;
 
-    @Column(name = "direccion")
+    @Column(name = "direccion", length = 200)
     private String direccion;
 
-    public Terminal() {}
+    @Column(name = "activo")
+    private Boolean activo = true;
+
+    public Terminal() {
+    }
 
     public Terminal(Integer idTerminal, String nombre, String ciudad, String direccion) {
         this.idTerminal = idTerminal;
         this.nombre = nombre;
         this.ciudad = ciudad;
         this.direccion = direccion;
+        this.activo = true;
     }
 
     public Integer getIdTerminal() { return idTerminal; }
@@ -45,4 +45,7 @@ public class Terminal {
 
     public String getDireccion() { return direccion; }
     public void setDireccion(String direccion) { this.direccion = direccion; }
+
+    public Boolean getActivo() { return activo == null || activo; }
+    public void setActivo(Boolean activo) { this.activo = activo; }
 }

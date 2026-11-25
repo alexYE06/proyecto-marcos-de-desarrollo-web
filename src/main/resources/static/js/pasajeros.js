@@ -1,49 +1,60 @@
+import { exigirRoles, limpiarSesion } from './core/session.js';
+import { escaparHtml, moneda, formatearFechaISO } from './core/formatters.js';
+
 let intervalId = null;
 
-document.addEventListener("DOMContentLoaded", () => {
-    // 1. Validar sesión
-    const usuarioRaw = localStorage.getItem('usuarioUrbanRide');
-    if (!usuarioRaw) {
-        alert("Sesión no iniciada. Redirigiendo...");
-        window.location.href = "index.html";
-        return;
-    }
-    const usuario = JSON.parse(usuarioRaw);
-    document.getElementById('usuarioHeader').innerText = usuario.nombre;
+window.redirigirInicio = function () {
+    sessionStorage.removeItem('asientosComprando');
+    sessionStorage.removeItem('limiteTiempoCompra');
+    sessionStorage.removeItem('viajeSeleccionadoId');
+    sessionStorage.removeItem('datosPasajerosComprando');
+    window.location.href = 'index.html';
+};
 
-    // 2. Obtener asientos seleccionados
+document.addEventListener('DOMContentLoaded', () => {
+    const sesion = exigirRoles(['CLIENTE', 'VENDEDOR', 'EMBARQUE', 'ADMIN']);
+    if (!sesion) return;
+
+    document.getElementById('usuarioHeader').textContent = sesion.nombreCompleto || sesion.nombre;
+
     const asientosRaw = sessionStorage.getItem('asientosComprando');
     if (!asientosRaw) {
-        alert("No has seleccionado asientos.");
-        window.location.href = "asientos.html";
+        window.location.href = 'asientos.html';
         return;
+    }
+
+    const infoViaje = JSON.parse(sessionStorage.getItem('resumenViajeComprando') || 'null');
+    if (infoViaje) {
+        document.getElementById('rutaResumenHeader').innerHTML =
+            `<i class="bi bi-geo-alt text-warning"></i> ${escaparHtml(infoViaje.origenCiudad)} → ${escaparHtml(infoViaje.destinoCiudad)} (${formatearFechaISO(infoViaje.fechaSalida)} ${escaparHtml(infoViaje.horaSalida)})`;
     }
 
     const asientos = JSON.parse(asientosRaw);
-    document.getElementById('totalPasajerosBadge').innerText = `${asientos.length} a bordo`;
+    document.getElementById('totalPasajerosBadge').textContent = `${asientos.length} a bordo`;
 
-    // 3. Renderizar formulario por cada asiento y desglose de precios
-    renderizarFormularios(asientos, usuario);
+    renderizarFormularios(asientos, sesion);
     renderizarDesglose(asientos);
-
-    // 4. Iniciar o reanudar el cronómetro de 15 minutos
     iniciarTemporizador();
 
-    // 5. Listener para guardar datos e ir a pago
-    const form = document.getElementById('formPasajeros');
-    form.addEventListener('submit', procesarDatosPasajeros);
+    document.getElementById('formPasajeros')?.addEventListener('submit', (e) => procesarDatosPasajeros(e, asientos));
 });
 
-// Renderizar un bloque de formulario por cada asiento
-function renderizarFormularios(asientos, usuario) {
+function renderizarFormularios(asientos, sesion) {
     const contenedor = document.getElementById('contenedorFormulariosPasajeros');
     contenedor.innerHTML = '';
 
+    const previos = JSON.parse(sessionStorage.getItem('datosPasajerosComprando') || '[]');
+
     asientos.forEach((asiento, index) => {
-        const esPrimerPasajero = (index === 0);
-        
-        // Autocompletar el primer pasajero con el usuario autenticado si aplica
-        const nombresDefault = esPrimerPasajero ? usuario.nombre : '';
+        const previo = previos.find(p => p.numeroAsiento === asiento.num);
+        const usarSesion = !previo && index === 0;
+
+        const tipoDoc = previo?.tipoDocumento || (usarSesion ? (sesion.tipoDocumento || 'DNI') : 'DNI');
+        const numDoc = previo?.numeroDocumento || (usarSesion ? (sesion.numeroDocumento || '') : '');
+        const nombre = previo?.nombre || (usarSesion ? (sesion.nombre || '') : '');
+        const apellido = previo?.apellido || (usarSesion ? (sesion.apellido || '') : '');
+        const correo = previo?.correo || (usarSesion ? (sesion.correo || '') : '');
+        const telefono = previo?.telefono || (usarSesion ? (sesion.telefono || '') : '');
 
         const tarjeta = document.createElement('div');
         tarjeta.className = 'card-pasajero p-4 mb-4';
@@ -51,145 +62,99 @@ function renderizarFormularios(asientos, usuario) {
             <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
                 <div class="d-flex align-items-center gap-2">
                     <span class="badge-asiento">Asiento ${asiento.num}</span>
-                    <span class="fw-bold text-dark">Pasajero ${index + 1}</span>
+                    <span class="fw-bold text-dark">Pasajero ${index + 1} · <small class="text-muted">${escaparHtml(asiento.categoria || '')}</small></span>
                 </div>
-                <span class="text-muted small">Tarifa: <strong>S/ ${asiento.precio.toFixed(2)}</strong></span>
+                <span class="text-muted small">Tarifa: <strong>${moneda(asiento.precio)}</strong></span>
             </div>
 
             <div class="row g-3">
                 <div class="col-12 col-md-4">
                     <label class="form-label small fw-bold text-muted">Tipo Documento</label>
                     <select class="form-select bg-white rounded-3" name="tipoDoc_${asiento.num}" required>
-                        <option value="DNI" selected>DNI</option>
-                        <option value="PASAPORTE">Pasaporte</option>
-                        <option value="CE">Carnet de Extranjería</option>
+                        <option value="DNI" ${tipoDoc === 'DNI' ? 'selected' : ''}>DNI</option>
+                        <option value="PASAPORTE" ${tipoDoc === 'PASAPORTE' ? 'selected' : ''}>Pasaporte</option>
+                        <option value="CE" ${tipoDoc === 'CE' ? 'selected' : ''}>Carnet de Extranjería</option>
                     </select>
                 </div>
                 <div class="col-12 col-md-8">
                     <label class="form-label small fw-bold text-muted">Número de Documento</label>
-                    <input type="text" class="form-control bg-white rounded-3" name="numDoc_${asiento.num}" placeholder="Ej. 72481923" maxlength="20" required>
+                    <input type="text" class="form-control bg-white rounded-3" name="numDoc_${asiento.num}" value="${escaparHtml(numDoc)}" maxlength="20" required>
                 </div>
 
                 <div class="col-12 col-md-6">
                     <label class="form-label small fw-bold text-muted">Nombres</label>
-                    <input type="text" class="form-control bg-white rounded-3" name="nombres_${asiento.num}" value="${nombresDefault}" placeholder="Nombres completos" required>
+                    <input type="text" class="form-control bg-white rounded-3" name="nombres_${asiento.num}" value="${escaparHtml(nombre)}" required>
                 </div>
                 <div class="col-12 col-md-6">
                     <label class="form-label small fw-bold text-muted">Apellidos</label>
-                    <input type="text" class="form-control bg-white rounded-3" name="apellidos_${asiento.num}" placeholder="Apellidos completos" required>
+                    <input type="text" class="form-control bg-white rounded-3" name="apellidos_${asiento.num}" value="${escaparHtml(apellido)}" required>
                 </div>
 
                 <div class="col-12 col-md-6">
-                    <label class="form-label small fw-bold text-muted">Correo de contacto / Envío de boleto</label>
-                    <input type="email" class="form-control bg-white rounded-3" name="correo_${asiento.num}" value="${esPrimerPasajero ? (usuario.correo || '') : ''}" placeholder="ejemplo@correo.com" required>
+                    <label class="form-label small fw-bold text-muted">Correo de contacto</label>
+                    <input type="email" class="form-control bg-white rounded-3" name="correo_${asiento.num}" value="${escaparHtml(correo)}" required>
                 </div>
                 <div class="col-12 col-md-6">
                     <label class="form-label small fw-bold text-muted">Teléfono / WhatsApp</label>
-                    <input type="tel" class="form-control bg-white rounded-3" name="telefono_${asiento.num}" placeholder="999888777" maxlength="15">
+                    <input type="tel" class="form-control bg-white rounded-3" name="telefono_${asiento.num}" value="${escaparHtml(telefono)}" maxlength="15">
                 </div>
-            </div>
-        `;
+            </div>`;
         contenedor.appendChild(tarjeta);
     });
 }
 
-// Renderizar resumen de tarifas en la columna derecha
 function renderizarDesglose(asientos) {
     const desglose = document.getElementById('desglosePrecios');
     const totalEl = document.getElementById('montoTotalPasajeros');
-
     let total = 0;
-    let html = '';
 
-    asientos.forEach((a, i) => {
-        total += a.precio;
-        html += `
+    desglose.innerHTML = asientos.map((a, i) => {
+        total += Number(a.precio) || 0;
+        return `
             <div class="d-flex justify-content-between small text-muted mb-2">
                 <span>Pasajero ${i + 1} (Asiento ${a.num})</span>
-                <span class="fw-bold text-dark">S/ ${a.precio.toFixed(2)}</span>
-            </div>
-        `;
-    });
+                <span class="fw-bold text-dark">${moneda(a.precio)}</span>
+            </div>`;
+    }).join('');
 
-    desglose.innerHTML = html;
-    totalEl.innerText = `S/ ${total.toFixed(2)}`;
+    totalEl.textContent = moneda(total);
 }
 
-// Temporizador de 15 minutos (900 segundos)
 function iniciarTemporizador() {
-    let expiracion = sessionStorage.getItem('limiteTiempoCompra');
-
-    if (!expiracion) {
-        expiracion = Date.now() + 15 * 60 * 1000;
-        sessionStorage.setItem('limiteTiempoCompra', expiracion.toString());
-    } else {
-        expiracion = parseInt(expiracion);
-    }
-
+    const exp = Number(sessionStorage.getItem('limiteTiempoCompra')) || (Date.now() + 15 * 60 * 1000);
     const reloj = document.getElementById('relojTemporizador');
 
-    function actualizarReloj() {
-        const ahora = Date.now();
-        const restanteMs = expiracion - ahora;
-
-        if (restanteMs <= 0) {
+    function tick() {
+        const restante = exp - Date.now();
+        if (restante <= 0) {
             clearInterval(intervalId);
-            reloj.innerText = "00:00";
-            
-            // Disparar modal de expiración
-            const modal = new bootstrap.Modal(document.getElementById('modalExpirado'));
-            modal.show();
+            if (reloj) reloj.textContent = '00:00';
+            new bootstrap.Modal(document.getElementById('modalExpirado')).show();
             return;
         }
-
-        const minutos = Math.floor(restanteMs / (1000 * 60));
-        const segundos = Math.floor((restanteMs % (1000 * 60)) / 1000);
-
-        reloj.innerText = `${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')}`;
+        const m = Math.floor(restante / 60000);
+        const s = Math.floor((restante % 60000) / 1000);
+        if (reloj) reloj.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
     }
 
-    actualizarReloj();
-    intervalId = setInterval(actualizarReloj, 1000);
+    tick();
+    intervalId = setInterval(tick, 1000);
 }
 
-// Botón de salida si expira la sesión
-function redirigirInicio() {
-    sessionStorage.removeItem('asientosComprando');
-    sessionStorage.removeItem('limiteTiempoCompra');
-    sessionStorage.removeItem('viajeSeleccionadoId');
-    window.location.href = "index.html";
-}
-
-// Procesar formulario y pasar al Paso 3 (Pago)
-function procesarDatosPasajeros(e) {
+function procesarDatosPasajeros(e, asientos) {
     e.preventDefault();
+    const listaPasajeros = asientos.map(a => ({
+        numeroAsiento: a.num,
+        precio: a.precio,
+        categoria: a.categoria,
+        tipoDocumento: document.querySelector(`[name="tipoDoc_${a.num}"]`).value,
+        numeroDocumento: document.querySelector(`[name="numDoc_${a.num}"]`).value.trim(),
+        nombre: document.querySelector(`[name="nombres_${a.num}"]`).value.trim(),
+        apellido: document.querySelector(`[name="apellidos_${a.num}"]`).value.trim(),
+        correo: document.querySelector(`[name="correo_${a.num}"]`).value.trim(),
+        telefono: document.querySelector(`[name="telefono_${a.num}"]`).value.trim()
+    }));
 
-    const asientos = JSON.parse(sessionStorage.getItem('asientosComprando'));
-    const listaPasajeros = [];
-
-    asientos.forEach(a => {
-        const tipoDoc = document.querySelector(`[name="tipoDoc_${a.num}"]`).value;
-        const numDoc = document.querySelector(`[name="numDoc_${a.num}"]`).value.trim();
-        const nombres = document.querySelector(`[name="nombres_${a.num}"]`).value.trim();
-        const apellidos = document.querySelector(`[name="apellidos_${a.num}"]`).value.trim();
-        const correo = document.querySelector(`[name="correo_${a.num}"]`).value.trim();
-        const telefono = document.querySelector(`[name="telefono_${a.num}"]`).value.trim();
-
-        listaPasajeros.push({
-            idAsiento: a.num,
-            precio: a.precio,
-            tipoDocumento: tipoDoc,
-            numeroDocumento: numDoc,
-            nombre: nombres,
-            apellido: apellidos,
-            correo: correo,
-            telefono: telefono
-        });
-    });
-
-    // Guardar para el módulo final de pago
     sessionStorage.setItem('datosPasajerosComprando', JSON.stringify(listaPasajeros));
-    
-    alert("¡Datos guardados con éxito! Pasando a la pasarela de pago...");
-    window.location.href = 'pago.html'; // Próximo paso
+    window.location.href = 'pago.html';
 }

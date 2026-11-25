@@ -1,18 +1,41 @@
 package pe.transporte.model;
 
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "bus")
 public class Bus {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id_bus")
     private Integer idBus;
+
+    @Column(name = "placa", nullable = false, unique = true, length = 15)
     private String placa;
+
+    @Column(name = "numero_interno", length = 20)
     private String numeroInterno;
+
+    @Column(name = "modelo", length = 80)
     private String modelo;
+
+    @Column(name = "marca", length = 60)
     private String marca;
-    private Integer pisos;
-    private Integer capacidadAsientos;
-    private String estado; // 'Activo', 'Mantenimiento'
 
-    public Bus() {}
+    @Column(name = "pisos", nullable = false)
+    private Integer pisos = 2;
 
-    public Bus(Integer idBus, String placa, String numeroInterno, String modelo, 
+    @Column(name = "capacidad_asientos", nullable = false)
+    private Integer capacidadAsientos = 64;
+
+    @Column(name = "estado", nullable = false, length = 25)
+    private String estado = "Activo"; // 'Activo', 'Mantenimiento', 'Inactivo'
+
+    public Bus() {
+    }
+
+    public Bus(Integer idBus, String placa, String numeroInterno, String modelo,
                String marca, Integer pisos, Integer capacidadAsientos, String estado) {
         this.idBus = idBus;
         this.placa = placa;
@@ -45,6 +68,6 @@ public class Bus {
     public Integer getCapacidadAsientos() { return capacidadAsientos; }
     public void setCapacidadAsientos(Integer capacidadAsientos) { this.capacidadAsientos = capacidadAsientos; }
 
-    public String getEstado() { return estado; }
+    public String getEstado() { return estado != null ? estado : "Activo"; }
     public void setEstado(String estado) { this.estado = estado; }
 }

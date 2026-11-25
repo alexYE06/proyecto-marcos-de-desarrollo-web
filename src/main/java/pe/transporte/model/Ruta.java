@@ -11,12 +11,10 @@ public class Ruta {
     @Column(name = "id_ruta")
     private Integer idRuta;
 
-    // Llave foránea hacia la tabla Terminal (Origen)
     @ManyToOne
     @JoinColumn(name = "id_terminal_origen", nullable = false)
     private Terminal origen;
 
-    // Llave foránea hacia la tabla Terminal (Destino)
     @ManyToOne
     @JoinColumn(name = "id_terminal_destino", nullable = false)
     private Terminal destino;
@@ -27,47 +25,40 @@ public class Ruta {
     @Column(name = "horas_estimadas")
     private Integer horasEstimadas;
 
+    @Column(name = "distancia_km")
+    private Integer distanciaKm;
+
+    @Column(name = "activo")
+    private Boolean activo = true;
+
     public Ruta() {
     }
 
-    // Getters y Setters
-    public Integer getIdRuta() {
-        return idRuta;
-    }
+    public Integer getIdRuta() { return idRuta; }
+    public void setIdRuta(Integer idRuta) { this.idRuta = idRuta; }
 
-    public void setIdRuta(Integer idRuta) {
-        this.idRuta = idRuta;
-    }
+    public Terminal getOrigen() { return origen; }
+    public void setOrigen(Terminal origen) { this.origen = origen; }
 
-    public Terminal getOrigen() {
-        return origen;
-    }
+    public Terminal getDestino() { return destino; }
+    public void setDestino(Terminal destino) { this.destino = destino; }
 
-    public void setOrigen(Terminal origen) {
-        this.origen = origen;
-    }
+    public Double getPrecioBase() { return precioBase; }
+    public void setPrecioBase(Double precioBase) { this.precioBase = precioBase; }
 
-    public Terminal getDestino() {
-        return destino;
-    }
+    public Integer getHorasEstimadas() { return horasEstimadas; }
+    public void setHorasEstimadas(Integer horasEstimadas) { this.horasEstimadas = horasEstimadas; }
 
-    public void setDestino(Terminal destino) {
-        this.destino = destino;
-    }
+    public Integer getDistanciaKm() { return distanciaKm; }
+    public void setDistanciaKm(Integer distanciaKm) { this.distanciaKm = distanciaKm; }
 
-    public Double getPrecioBase() {
-        return precioBase;
-    }
+    public Boolean getActivo() { return activo == null || activo; }
+    public void setActivo(Boolean activo) { this.activo = activo; }
 
-    public void setPrecioBase(Double precioBase) {
-        this.precioBase = precioBase;
-    }
-
-    public Integer getHorasEstimadas() {
-        return horasEstimadas;
-    }
-
-    public void setHorasEstimadas(Integer horasEstimadas) {
-        this.horasEstimadas = horasEstimadas;
+    @Override
+    public String toString() {
+        String ciuOrig = origen != null ? origen.getCiudad() + " (" + origen.getNombre() + ")" : "";
+        String ciuDest = destino != null ? destino.getCiudad() + " (" + destino.getNombre() + ")" : "";
+        return ciuOrig + " -> " + ciuDest;
     }
 }

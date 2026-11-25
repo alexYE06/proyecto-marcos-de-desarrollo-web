@@ -1,27 +1,45 @@
 package pe.transporte.util;
 
-import java.util.Set;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 /**
- * Misma regla de tarifas y asientos ocupados que usa asientos.js:
- *  - Piso 1: asientos 1-4 = S/ 125, 5-20 = S/ 115
- *  - Piso 2: asientos 21-64 = S/ 90
- * Si cambias las tarifas en asientos.js, cámbialas también aquí.
+ * Regla centralizada de estructura y tarifas del bus de dos pisos (64 asientos):
+ * - Piso 1 Panorámico (asientos 1-4): tarifa base + S/ 35
+ * - Piso 1 VIP Ejecutivo (asientos 5-20): tarifa base + S/ 25
+ * - Piso 2 Confort (asientos 21-64): tarifa base del viaje (ej. S/ 90)
  */
 public final class TarifasAsientos {
 
     public static final int TOTAL_ASIENTOS = 64;
     public static final int MAX_POR_VENTA = 5;
+    public static final double PRECIO_BASE_DEFECTO = 90.0;
 
-    // Mismos asientos "ocupados" de ejemplo que asientos.js
-    public static final Set<Integer> OCUPADOS_BASE =
-            Set.of(2, 8, 11, 15, 19, 26, 27, 34, 38, 45, 46, 53, 60);
+    private TarifasAsientos() {
+    }
 
-    private TarifasAsientos() {}
+    public static int piso(int numeroAsiento) {
+        return numeroAsiento <= 20 ? 1 : 2;
+    }
+
+    public static String categoria(int numeroAsiento) {
+        if (numeroAsiento <= 4) return "VIP Panorámico 180°";
+        if (numeroAsiento <= 20) return "VIP Ejecutivo 160°";
+        return "Confort 140°";
+    }
+
+    public static BigDecimal precio(int numeroAsiento, Double precioBaseViaje) {
+        double base = (precioBaseViaje != null && precioBaseViaje > 0) ? precioBaseViaje : PRECIO_BASE_DEFECTO;
+        double monto = base;
+        if (numeroAsiento <= 4) {
+            monto = base + 35.0;
+        } else if (numeroAsiento <= 20) {
+            monto = base + 25.0;
+        }
+        return BigDecimal.valueOf(monto).setScale(2, RoundingMode.HALF_UP);
+    }
 
     public static int precio(int numeroAsiento) {
-        if (numeroAsiento <= 4) return 125;
-        if (numeroAsiento <= 20) return 115;
-        return 90;
+        return precio(numeroAsiento, PRECIO_BASE_DEFECTO).intValue();
     }
 }

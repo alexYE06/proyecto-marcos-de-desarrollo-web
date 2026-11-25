@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<body>
+    <footer th:fragment="piePagina" id="contacto" class="footer-section py-5 text-white mt-5 bg-dark">
+        <div class="container text-center text-md-start">
+            <div class="row g-4 align-items-center">
+                <div class="col-md-4">
+                    <h3 class="fw-bold mb-2">Urban<span class="text-warning">Ride</span></h3>
+                    <p class="text-white-50 small mb-1">Conectando destinos con seguridad vial, boletos QR y arquitectura Spring Boot + Thymeleaf + Spring Security JWT.</p>
+                    <small class="text-warning" th:text="'Sincronizado con PostgreSQL · ' + (${horaServidor} ?: '')"></small>
+                </div>
+                <div class="col-md-4 text-center">
+                    <h6 class="text-white fw-bold mb-2">Rutas Principales</h6>
+                    <p class="mb-1 text-white-50 small">Lima – Arequipa · Lima – Cusco</p>
+                    <p class="mb-0 text-white-50 small">Lima – Huancayo · Lima – Ica · Lima – Trujillo</p>
+                </div>
+                <div class="col-md-4 text-center text-md-end">
+                    <h6 class="text-white fw-bold mb-2">Soporte y Central</h6>
+                    <p class="mb-1 text-white-50 small"><i class="bi bi-whatsapp text-success"></i> +51 999 888 777</p>
+                    <p class="mb-0 text-white-50 small"><i class="bi bi-envelope"></i> contacto@urbanride.pe</p>
+                </div>
+            </div>
+            <hr class="border-secondary my-4">
+            <div class="text-center text-white-50 small">&copy; 2026 UrbanRide Perú S.A.C. Todos los derechos reservados.</div>
+        </div>
+    </footer>
+</body>
+</html>
