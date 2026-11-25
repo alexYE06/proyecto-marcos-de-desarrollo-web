@@ -23,6 +23,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('linkVolverAdminPos')?.classList.remove('d-none');
     }
 
+    document.querySelectorAll('#menuPosSidebar [data-vista-pos]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('#menuPosSidebar [data-vista-pos]').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const target = btn.dataset.vistaPos === 'historial'
+                ? document.getElementById('seccionHistorialPos')
+                : document.getElementById('seccionNuevaVentaPos');
+            target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    });
+
     const selectorPago = inicializarSelectorPago({
         contenedorOpciones: document.getElementById('posOpcionesPago'),
         contenedorDetalle: document.getElementById('posDetallePago'),

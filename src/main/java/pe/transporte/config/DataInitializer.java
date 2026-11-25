@@ -9,6 +9,8 @@ import org.springframework.transaction.annotation.Transactional;
 import pe.transporte.model.*;
 import pe.transporte.repository.*;
 import pe.transporte.util.EncriptadorPassword;
+import pe.transporte.util.GeneradorQR;
+import pe.transporte.util.TarifasAsientos;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -17,7 +19,8 @@ import java.time.LocalTime;
 import java.util.List;
 
 /**
- * Inicializa cuentas de demostración por cargo y datos operativos base si la BD está vacía.
+ * Inicializa cuentas de demostración por cargo, flota, salidas y ventas/boletos de muestra
+ * para que el Manifiesto del Bus, Dashboard y Bitácora de Auditoría tengan datos reales desde el inicio.
  */
 @Component
 @Profile("!test")
@@ -32,6 +35,8 @@ public class DataInitializer implements CommandLineRunner {
     private final EmpleadoRepository empleadoRepository;
     private final ViajeRepository viajeRepository;
     private final CuponRepository cuponRepository;
+    private final VentaRepository ventaRepository;
+    private final AuditoriaLogRepository auditoriaLogRepository;
 
     public DataInitializer(UsuarioRepository usuarioRepository,
                            TerminalRepository terminalRepository,
@@ -39,7 +44,9 @@ public class DataInitializer implements CommandLineRunner {
                            BusRepository busRepository,
                            EmpleadoRepository empleadoRepository,
                            ViajeRepository viajeRepository,
-                           CuponRepository cuponRepository) {
+                           CuponRepository cuponRepository,
+                           VentaRepository ventaRepository,
+                           AuditoriaLogRepository auditoriaLogRepository) {
         this.usuarioRepository = usuarioRepository;
         this.terminalRepository = terminalRepository;
         this.rutaRepository = rutaRepository;
@@ -47,6 +54,8 @@ public class DataInitializer implements CommandLineRunner {
         this.empleadoRepository = empleadoRepository;
         this.viajeRepository = viajeRepository;
         this.cuponRepository = cuponRepository;
+        this.ventaRepository = ventaRepository;
+        this.auditoriaLogRepository = auditoriaLogRepository;
     }
 
     @Override
@@ -55,6 +64,7 @@ public class DataInitializer implements CommandLineRunner {
         sembrarUsuariosPorRol();
         sembrarCatalogoOperativo();
         sembrarCupones();
+        sembrarVentasManifiestoYAuditoria();
     }
 
     private void sembrarUsuariosPorRol() {
@@ -202,5 +212,166 @@ public class DataInitializer implements CommandLineRunner {
 
             cuponRepository.saveAll(List.of(c1, c2));
         }
+    }
+
+    private void sembrarVentasManifiestoYAuditoria() {
+        if (ventaRepository.count() > 0) {
+            return;
+        }
+        List<Viaje> viajes = viajeRepository.findAllByOrderByFechaHoraSalidaAsc();
+        if (viajes.isEmpty()) {
+            return;
+        }
+
+        Usuario cliente = usuarioRepository.findByCorreoIgnoreCase("cliente@urbanride.pe").orElse(null);
+        Usuario vendedor = usuarioRepository.findByCorreoIgnoreCase("vendedor@urbanride.pe").orElse(null);
+        Usuario inspector = usuarioRepository.findByCorreoIgnoreCase("embarque@urbanride.pe").orElse(null);
+        Usuario admin = usuarioRepository.findByCorreoIgnoreCase("admin@urbanride.pe").orElse(null);
+
+        Viaje primerViaje = viajes.get(0);
+        Viaje segundoViaje = viajes.size() > 1 ? viajes.get(1) : primerViaje;
+
+        // 1. Venta WEB (2 pasajeros en el primer viaje: 1 ya abordado, 1 pendiente)
+        Venta vWeb = new Venta();
+        vWeb.setCodigoReserva("UR-DEMO01");
+        vWeb.setTipoComprobante("BOLETA");
+        vWeb.setSerieNumero("B001-000101");
+        vWeb.setCanalVenta("WEB");
+        vWeb.setViaje(primerViaje);
+        vWeb.setCliente(cliente);
+        vWeb.setCompradorNombre("Ana Torres");
+        vWeb.setCompradorTipoDoc("DNI");
+        vWeb.setCompradorDocumento("72005004");
+        vWeb.setCompradorCorreo("cliente@urbanride.pe");
+        vWeb.setCompradorTelefono("999111004");
+        vWeb.setMetodoPago("TARJETA");
+        vWeb.setEstadoPago("PAGADO");
+        vWeb.setFechaVenta(LocalDateTime.now().minusHours(2));
+
+        Boleto b1 = crearBoletoDemo("TK-DEMO01", primerViaje, 1, "DNI", "72005004", "Ana", "Torres", "ABORDADO", inspector);
+        Boleto b2 = crearBoletoDemo("TK-DEMO02", primerViaje, 2, "DNI", "72881122", "Mateo", "Torres", "PENDIENTE", null);
+        vWeb.agregarBoleto(b1);
+        vWeb.agregarBoleto(b2);
+        BigDecimal totalWeb = b1.getPrecio().add(b2.getPrecio());
+        vWeb.setSubtotal(totalWeb);
+        vWeb.setDescuento(BigDecimal.ZERO);
+        vWeb.setMontoTotal(totalWeb);
+        ventaRepository.saveAndFlush(vWeb);
+
+        // 2. Venta VENTANILLA POS (3 pasajeros en el primer viaje para llenar el Manifiesto del Bus)
+        Venta vPos = new Venta();
+        vPos.setCodigoReserva("POS-DEMO02");
+        vPos.setTipoComprobante("BOLETA");
+        vPos.setSerieNumero("B001-000102");
+        vPos.setCanalVenta("VENTANILLA");
+        vPos.setViaje(primerViaje);
+        vPos.setVendedor(vendedor);
+        vPos.setCompradorNombre("Sofía Ramírez");
+        vPos.setCompradorTipoDoc("DNI");
+        vPos.setCompradorDocumento("46119988");
+        vPos.setCompradorTelefono("987112233");
+        vPos.setMetodoPago("YAPE");
+        vPos.setEstadoPago("PAGADO");
+        vPos.setFechaVenta(LocalDateTime.now().minusMinutes(50));
+
+        Boleto b3 = crearBoletoDemo("TK-DEMO03", primerViaje, 7, "DNI", "46119988", "Sofía", "Ramírez", "ABORDADO", inspector);
+        Boleto b4 = crearBoletoDemo("TK-DEMO04", primerViaje, 8, "DNI", "48223344", "Pedro", "Castillo", "PENDIENTE", null);
+        Boleto b5 = crearBoletoDemo("TK-DEMO05", primerViaje, 25, "DNI", "71998877", "Valeria", "Gutiérrez", "PENDIENTE", null);
+        vPos.agregarBoleto(b3);
+        vPos.agregarBoleto(b4);
+        vPos.agregarBoleto(b5);
+        BigDecimal totalPos = b3.getPrecio().add(b4.getPrecio()).add(b5.getPrecio());
+        vPos.setSubtotal(totalPos);
+        vPos.setDescuento(BigDecimal.ZERO);
+        vPos.setMontoTotal(totalPos);
+        ventaRepository.saveAndFlush(vPos);
+
+        primerViaje.setAsientosDisponibles(59);
+        primerViaje.setEstado("EMBARCANDO");
+        viajeRepository.saveAndFlush(primerViaje);
+
+        // 3. Venta VENTANILLA con Solicitud de Anulación pendiente para demostrar aprobación del ADMIN
+        Venta vSol = new Venta();
+        vSol.setCodigoReserva("POS-DEMO03");
+        vSol.setTipoComprobante("FACTURA");
+        vSol.setSerieNumero("F001-000103");
+        vSol.setRucFactura("20601234567");
+        vSol.setRazonSocialFactura("CONSULTORA ANDINA S.A.C.");
+        vSol.setCanalVenta("VENTANILLA");
+        vSol.setViaje(segundoViaje);
+        vSol.setVendedor(vendedor);
+        vSol.setCompradorNombre("CONSULTORA ANDINA S.A.C.");
+        vSol.setCompradorTipoDoc("RUC");
+        vSol.setCompradorDocumento("20601234567");
+        vSol.setMetodoPago("EFECTIVO");
+        vSol.setEstadoPago("ANULACION_SOLICITADA");
+        vSol.setMotivoAnulacion("Cliente reprogramará su viaje para el turno nocturno");
+        vSol.setSolicitanteAnulacion(vendedor);
+        vSol.setFechaVenta(LocalDateTime.now().minusMinutes(25));
+
+        Boleto b6 = crearBoletoDemo("TK-DEMO06", segundoViaje, 12, "DNI", "43210987", "Ricardo", "Chávez", "PENDIENTE", null);
+        vSol.agregarBoleto(b6);
+        vSol.setSubtotal(b6.getPrecio());
+        vSol.setDescuento(BigDecimal.ZERO);
+        vSol.setMontoTotal(b6.getPrecio());
+        ventaRepository.saveAndFlush(vSol);
+
+        segundoViaje.setAsientosDisponibles(Math.max(0, (segundoViaje.getAsientosDisponibles() != null ? segundoViaje.getAsientosDisponibles() : 64) - 1));
+        viajeRepository.saveAndFlush(segundoViaje);
+
+        // Eventos iniciales en Bitácora de Auditoría
+        if (auditoriaLogRepository.count() == 0) {
+            crearLogDemo(admin, "FLOTA", "CAMBIO_ESTADO", "Bus", "A2R-960",
+                    "Retiró bus A2R-960 a estado Mantenimiento preventivo de frenos.", "Mantenimiento preventivo 50,000 km");
+            crearLogDemo(inspector, "EMBARQUE", "ABORDAJE_QR", "Boleto", "TK-DEMO01",
+                    "Validó abordaje QR de Ana Torres (Asiento 1, Viaje #" + primerViaje.getIdViaje() + ").", null);
+            crearLogDemo(vendedor, "VENTAS", "SOLICITAR_ANULACION", "Venta", "POS-DEMO03",
+                    "Solicitó anulación de Factura F001-000103 (S/ " + b6.getPrecio() + ") para aprobación de Gerencia.",
+                    "Cliente reprogramará su viaje para el turno nocturno");
+        }
+        log.info("Ventas de demostración, Manifiesto del Bus (5 pasajeros) y Bitácora de Auditoría inicializados.");
+    }
+
+    private Boleto crearBoletoDemo(String codigo, Viaje viaje, int asiento, String tipoDoc, String numDoc,
+                                   String nombre, String apellido, String estadoAbordaje, Usuario inspector) {
+        Boleto b = new Boleto();
+        b.setCodigoBoleto(codigo);
+        b.setViaje(viaje);
+        b.setNumeroAsiento(asiento);
+        b.setPiso(TarifasAsientos.piso(asiento));
+        b.setCategoriaAsiento(TarifasAsientos.categoria(asiento));
+        b.setPasajeroTipoDoc(tipoDoc);
+        b.setPasajeroDocumento(numDoc);
+        b.setPasajeroNombre(nombre);
+        b.setPasajeroApellido(apellido);
+        b.setPrecio(TarifasAsientos.precio(asiento, viaje.getPrecio()));
+        b.setCodigoQr(GeneradorQR.generarQRBoleto(codigo, viaje.getIdViaje(), asiento, numDoc));
+        b.setEstadoAbordaje(estadoAbordaje);
+        if ("ABORDADO".equals(estadoAbordaje)) {
+            b.setFechaAbordaje(LocalDateTime.now().minusMinutes(15));
+            b.setInspectorAbordaje(inspector);
+        }
+        return b;
+    }
+
+    private void crearLogDemo(Usuario actor, String modulo, String accion, String entidad,
+                              String idEntidad, String descripcion, String motivo) {
+        AuditoriaLog logEntry = new AuditoriaLog();
+        logEntry.setFechaHora(LocalDateTime.now().minusMinutes(10));
+        if (actor != null) {
+            logEntry.setIdUsuarioActor(actor.getIdUsuario());
+            logEntry.setActorNombre(actor.getNombreCompleto());
+            logEntry.setActorRol(actor.getRol());
+        } else {
+            logEntry.setActorNombre("Sistema");
+            logEntry.setActorRol("SISTEMA");
+        }
+        logEntry.setModulo(modulo);
+        logEntry.setAccion(accion);
+        logEntry.setEntidad(entidad);
+        logEntry.setIdEntidad(idEntidad);
+        logEntry.setDescripcion(descripcion);
+        logEntry.setMotivo(motivo);
+        auditoriaLogRepository.save(logEntry);
     }
 }

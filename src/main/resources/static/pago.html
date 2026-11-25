@@ -180,7 +180,7 @@
                     <div class="form-check mb-2">
                         <input class="form-check-input" type="checkbox" id="checkTerminos" required checked>
                         <label class="form-check-label small text-muted" for="checkTerminos">
-                            Al hacer clic, confirmo haber leído y acepto los <a href="#" class="text-decoration-none">términos y condiciones</a> y el <a href="#" class="text-decoration-none">aviso de privacidad</a>.
+                            Al hacer clic, confirmo haber leído y acepto los <a href="#" class="text-decoration-none" data-bs-toggle="modal" data-bs-target="#modalTerminosUrbanRide">términos y condiciones</a> y el <a href="#" class="text-decoration-none" data-bs-toggle="modal" data-bs-target="#modalTerminosUrbanRide">aviso de privacidad</a>.
                         </label>
                     </div>
 
@@ -270,6 +270,26 @@
                     <button class="btn btn-warning rounded-pill py-2 fw-bold text-dark" onclick="redirigirInicio()">
                         Volver al inicio
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Términos y Aviso de Privacidad -->
+    <div class="modal fade" id="modalTerminosUrbanRide" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content rounded-4 border-0 shadow-lg">
+                <div class="modal-header bg-dark text-white">
+                    <h6 class="modal-title fw-bold"><i class="bi bi-file-text text-warning"></i> Términos de Transporte y Privacidad — UrbanRide</h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body small text-muted">
+                    <p><strong>1. Embarque y Documentación:</strong> Todo pasajero debe presentarse 30 minutos antes de la salida con su documento de identidad original y su boleto electrónico con código QR.</p>
+                    <p><strong>2. Anulaciones Auditadas:</strong> Las solicitudes de anulación de boletos están sujetas a validación y registro en auditoría por Administración General antes de la partida del bus.</p>
+                    <p class="mb-0"><strong>3. Protección de Datos (Ley N° 29733):</strong> Tus datos se utilizan exclusivamente para emitir comprobantes SUNAT, conformar el Manifiesto de Pasajeros SUTRAN y validar el abordaje seguro.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold" data-bs-dismiss="modal">Entendido</button>
                 </div>
             </div>
         </div>

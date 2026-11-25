@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Control de Embarque y Validación QR - UrbanRide</title>
+    <title>Control de Embarque y Manifiesto del Bus - UrbanRide</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="css/styles.css">
@@ -18,7 +18,7 @@
                 <span class="badge-role-pill ms-2" id="badgeCargoEmbarque">EMBARQUE · QR</span>
             </a>
             <div class="text-white-50 small d-none d-md-block">
-                <i class="bi bi-qr-code-scan text-warning"></i> Control de Abordaje, Verificación Anti-Fraude y Manifiesto
+                <i class="bi bi-qr-code-scan text-warning"></i> Control de Abordaje, Verificación Anti-Fraude y Manifiesto del Bus
             </div>
             <div id="usuarioHeaderEmbarque" class="text-white small fw-bold"></div>
         </div>
@@ -27,111 +27,181 @@
     <div class="admin-layout">
         <aside class="admin-sidebar">
             <div class="sidebar-title fw-bold">Operaciones Rampa</div>
-            <nav class="nav flex-column gap-1">
-                <a class="nav-link active" href="#seccionValidadorQr"><i class="bi bi-qr-code-scan"></i> Validar Boleto / QR</a>
-                <a class="nav-link" href="#seccionManifiesto"><i class="bi bi-clipboard2-check"></i> Manifiesto del Bus</a>
-                <a class="nav-link d-none" href="admin-panel.html" id="linkVolverAdminEmb"><i class="bi bi-speedometer2 text-warning"></i> Volver a Panel Admin</a>
+            <nav class="nav flex-column gap-1" id="menuEmbarqueSidebar">
+                <button type="button" class="nav-link active" data-vista-embarque="validador">
+                    <i class="bi bi-qr-code-scan"></i> Validar Boleto / QR
+                </button>
+                <button type="button" class="nav-link" data-vista-embarque="manifiesto">
+                    <i class="bi bi-clipboard2-check"></i> Manifiesto del Bus
+                    <span class="badge bg-warning text-dark ms-auto" id="badgeTotalManifiesto">0</span>
+                </button>
+                <a class="nav-link d-none" href="admin-panel.html" id="linkVolverAdminEmb">
+                    <i class="bi bi-speedometer2 text-warning"></i> Volver a Panel Admin
+                </a>
                 <a class="nav-link" href="index.html"><i class="bi bi-globe2"></i> Portal Público</a>
-                <button type="button" class="nav-link text-danger" id="btnLogoutEmbarque"><i class="bi bi-box-arrow-right"></i> Cerrar sesión</button>
+                <button type="button" class="nav-link text-danger" id="btnLogoutEmbarque">
+                    <i class="bi bi-box-arrow-right"></i> Cerrar sesión
+                </button>
             </nav>
         </aside>
 
         <div class="flex-grow-1 d-flex flex-column" style="min-width: 0;">
             <main class="admin-content">
 
-                <div class="row g-4 mb-4">
-                    <!-- Selector de Salida Operativa y Despacho -->
-                    <div class="col-12 col-lg-5">
-                        <div class="card border-0 rounded-4 shadow-sm p-4 h-100">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h5 class="fw-bold mb-0"><i class="bi bi-bus-front-fill text-warning"></i> Unidad en Rampa</h5>
-                                <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill" id="btnRefrescarEmbarque">
+                <!-- Barra superior persistente: Selección de Unidad en Rampa -->
+                <div class="card border-0 rounded-4 shadow-sm p-3 mb-4">
+                    <div class="row g-3 align-items-center">
+                        <div class="col-12 col-lg-7">
+                            <label class="form-label small fw-bold text-muted mb-1" for="selectViajeEmbarque">
+                                <i class="bi bi-bus-front-fill text-warning"></i> Unidad / Salida en Control de Rampa
+                            </label>
+                            <div class="input-group">
+                                <select class="form-select rounded-start-3 bg-light fw-semibold" id="selectViajeEmbarque"></select>
+                                <button type="button" class="btn btn-outline-dark" id="btnRefrescarEmbarque" title="Actualizar datos">
                                     <i class="bi bi-arrow-clockwise"></i>
                                 </button>
                             </div>
-
-                            <label class="form-label small fw-bold text-muted" for="selectViajeEmbarque">Seleccionar salida programada</label>
-                            <select class="form-select rounded-3 bg-light mb-3" id="selectViajeEmbarque"></select>
-
-                            <div id="detalleUnidadEmbarque" class="p-3 rounded-3 bg-light border small mb-3">
-                                Selecciona un viaje para visualizar tripulación y ocupación.
-                            </div>
-
-                            <div class="small fw-bold text-muted mb-2">Actualizar estado operativo de la salida:</div>
-                            <div class="d-flex flex-wrap gap-2">
+                        </div>
+                        <div class="col-12 col-lg-5">
+                            <div class="small fw-bold text-muted mb-1">Despacho operativo de la unidad:</div>
+                            <div class="d-flex flex-wrap gap-1">
                                 <button type="button" class="btn btn-sm btn-outline-warning text-dark fw-bold rounded-pill px-3" data-cambiar-estado="EMBARCANDO">
-                                    1. Iniciar Embarque
+                                    1. Embarcando
                                 </button>
                                 <button type="button" class="btn btn-sm btn-outline-info text-dark fw-bold rounded-pill px-3" data-cambiar-estado="EN_RUTA">
-                                    2. Despachar a Ruta
+                                    2. En Ruta
                                 </button>
                                 <button type="button" class="btn btn-sm btn-outline-success fw-bold rounded-pill px-3" data-cambiar-estado="FINALIZADO">
-                                    3. Finalizar Viaje
+                                    3. Finalizado
                                 </button>
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Escáner / Validador de Código QR o DNI -->
-                    <div class="col-12 col-lg-7" id="seccionValidadorQr">
-                        <div class="card border-0 rounded-4 shadow-sm p-4 h-100">
-                            <h5 class="fw-bold mb-1"><i class="bi bi-upc-scan text-primary"></i> Verificador de Boleto y Código QR</h5>
-                            <p class="text-muted small mb-3">Escanea la cadena QR del boleto, escribe el código <code>TK-...</code> o valida por DNI del pasajero en la unidad seleccionada.</p>
-
-                            <form id="formValidarAbordaje" class="row g-2 align-items-end mb-3">
-                                <div class="col-12 col-md-6">
-                                    <label class="form-label small fw-bold text-muted">Código de Boleto o Lectura QR</label>
-                                    <input type="text" class="form-control rounded-3" id="inputCodigoQr" placeholder="Ej. TK-8F2K9P o URBANRIDE|BOLETO:...">
+                <!-- ==================== VISTA 1: VALIDADOR QR Y CONTROL DE PUERTA ==================== -->
+                <section data-seccion-embarque="validador">
+                    <div class="row g-4 mb-4">
+                        <div class="col-12 col-lg-5">
+                            <div class="card border-0 rounded-4 shadow-sm p-4 h-100">
+                                <h5 class="fw-bold mb-3"><i class="bi bi-info-circle-fill text-primary"></i> Resumen de Unidad</h5>
+                                <div id="detalleUnidadEmbarque" class="p-3 rounded-3 bg-light border small mb-3">
+                                    Cargando unidad seleccionada...
                                 </div>
-                                <div class="col-12 col-md-3">
-                                    <label class="form-label small fw-bold text-muted">O por N° Documento</label>
-                                    <input type="text" class="form-control rounded-3" id="inputDniAbordaje" placeholder="DNI pasajero">
-                                </div>
-                                <div class="col-12 col-md-3 d-grid">
-                                    <button type="submit" class="btn btn-primary fw-bold rounded-3 py-2">
-                                        <i class="bi bi-check2-circle"></i> Validar Pase
+                                <div class="d-grid">
+                                    <button type="button" class="btn btn-dark rounded-pill fw-bold" id="btnIrAManifiestoRapido">
+                                        <i class="bi bi-clipboard2-check text-warning"></i> Abrir Manifiesto Completo del Bus
                                     </button>
                                 </div>
-                            </form>
+                            </div>
+                        </div>
 
-                            <div id="resultadoValidacionBox" class="p-3 rounded-4 border bg-light text-center text-muted small">
-                                Esperando lectura de código de boleto o documento...
+                        <div class="col-12 col-lg-7">
+                            <div class="card border-0 rounded-4 shadow-sm p-4 h-100">
+                                <h5 class="fw-bold mb-1"><i class="bi bi-upc-scan text-primary"></i> Verificador Anti-Fraude de Boleto / QR</h5>
+                                <p class="text-muted small mb-3">Escanea la cadena QR, ingresa el código <code>TK-...</code> o busca por DNI del pasajero.</p>
+
+                                <form id="formValidarAbordaje" class="row g-2 align-items-end mb-3">
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label small fw-bold text-muted">Código de Boleto o Lectura QR</label>
+                                        <input type="text" class="form-control rounded-3" id="inputCodigoQr" placeholder="Ej. TK-DEMO02 o URBANRIDE|BOLETO:...">
+                                    </div>
+                                    <div class="col-12 col-md-3">
+                                        <label class="form-label small fw-bold text-muted">O por N° Documento</label>
+                                        <input type="text" class="form-control rounded-3" id="inputDniAbordaje" placeholder="DNI pasajero">
+                                    </div>
+                                    <div class="col-12 col-md-3 d-grid">
+                                        <button type="submit" class="btn btn-primary fw-bold rounded-3 py-2">
+                                            <i class="bi bi-check2-circle"></i> Validar Pase
+                                        </button>
+                                    </div>
+                                </form>
+
+                                <div id="resultadoValidacionBox" class="p-3 rounded-4 border bg-light text-center text-muted small mb-3">
+                                    Esperando lectura de código de boleto o documento...
+                                </div>
+
+                                <div class="small">
+                                    <div class="fw-bold text-muted mb-1">Boletos pendientes de abordar en esta salida (clic para cargar al escáner):</div>
+                                    <div id="chipsPendientesEscaneo" class="d-flex flex-wrap gap-1"></div>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
+                </section>
 
-                <!-- Manifiesto Oficial de Pasajeros -->
-                <div class="card border-0 rounded-4 shadow-sm p-4" id="seccionManifiesto">
-                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-                        <div>
-                            <h5 class="fw-bold mb-0">Manifiesto de Pasajeros a Bordo</h5>
-                            <small class="text-muted" id="subtituloManifiesto">Lista oficial para control SUTRAN y tripulación</small>
+                <!-- ==================== VISTA 2: MANIFIESTO OFICIAL DEL BUS ==================== -->
+                <section data-seccion-embarque="manifiesto" class="d-none">
+                    <!-- KPIs del Manifiesto -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-6 col-md-3">
+                            <div class="card border-0 rounded-4 shadow-sm p-3 stat-card">
+                                <div class="small fw-bold text-muted">Total Pasajeros</div>
+                                <div class="fs-3 fw-bold text-dark" id="manKpiTotal">0</div>
+                            </div>
                         </div>
-                        <button type="button" class="btn btn-outline-dark btn-sm rounded-pill px-3" onclick="window.print()">
-                            <i class="bi bi-printer"></i> Imprimir Manifiesto
-                        </button>
+                        <div class="col-6 col-md-3">
+                            <div class="card border-0 rounded-4 shadow-sm p-3 stat-card-green">
+                                <div class="small fw-bold text-muted">Abordados</div>
+                                <div class="fs-3 fw-bold text-success" id="manKpiAbordados">0</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="card border-0 rounded-4 shadow-sm p-3 stat-card-blue">
+                                <div class="small fw-bold text-muted">Pendientes</div>
+                                <div class="fs-3 fw-bold text-primary" id="manKpiPendientes">0</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="card border-0 rounded-4 shadow-sm p-3">
+                                <div class="small fw-bold text-muted">Tripulación Asignada</div>
+                                <div class="small fw-bold text-dark mt-1" id="manKpiTripulacion">-</div>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-admin mb-0">
-                            <thead>
-                                <tr>
-                                    <th class="text-center" style="width: 85px;">Asiento</th>
-                                    <th class="text-center" style="width: 75px;">Piso</th>
-                                    <th>Pasajero</th>
-                                    <th class="text-center">Documento</th>
-                                    <th class="text-center">Cód. Boleto</th>
-                                    <th class="text-center">Estado Abordaje</th>
-                                    <th class="text-center">Check-in Manual</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tablaManifiesto">
-                                <tr><td colspan="7" class="text-center text-muted py-4">Selecciona un viaje arriba.</td></tr>
-                            </tbody>
-                        </table>
+                    <div class="card border-0 rounded-4 shadow-sm p-4">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                            <div>
+                                <h4 class="fw-bold mb-0"><i class="bi bi-clipboard2-data text-warning"></i> Manifiesto Oficial de Pasajeros a Bordo</h4>
+                                <small class="text-muted" id="subtituloManifiesto">Control SUTRAN · Lista de pasajeros verificados</small>
+                            </div>
+                            <div class="d-flex flex-wrap gap-2">
+                                <input type="search" class="form-control form-control-sm rounded-pill px-3" id="filtroBuscarManifiesto" placeholder="Buscar nombre, DNI o asiento..." style="width: 220px;">
+                                <select class="form-select form-select-sm rounded-pill px-3" id="filtroEstadoManifiesto" style="width: auto;">
+                                    <option value="">Todos</option>
+                                    <option value="PENDIENTE">Pendientes</option>
+                                    <option value="ABORDADO">Abordados</option>
+                                </select>
+                                <button type="button" class="btn btn-outline-success btn-sm rounded-pill px-3 fw-bold" id="btnExportarManifiestoCsv">
+                                    <i class="bi bi-filetype-csv"></i> CSV
+                                </button>
+                                <button type="button" class="btn btn-dark btn-sm rounded-pill px-3 fw-bold" onclick="window.print()">
+                                    <i class="bi bi-printer"></i> Imprimir
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-admin mb-0">
+                                <thead>
+                                    <tr>
+                                        <th class="text-center" style="width: 85px;">Asiento</th>
+                                        <th class="text-center" style="width: 75px;">Piso</th>
+                                        <th>Pasajero</th>
+                                        <th class="text-center">Documento</th>
+                                        <th class="text-center">Cód. Boleto</th>
+                                        <th class="text-center">Estado Abordaje</th>
+                                        <th class="text-center">Check-in en Puerta</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaManifiesto">
+                                    <tr><td colspan="7" class="text-center text-muted py-4">Cargando manifiesto...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                </div>
+                </section>
 
             </main>
         </div>

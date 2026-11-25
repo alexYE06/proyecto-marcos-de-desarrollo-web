@@ -34,19 +34,22 @@ public class VentaPasajeService {
     private final UsuarioRepository usuarioRepository;
     private final CuponRepository cuponRepository;
     private final CatalogoViajeService catalogoViajeService;
+    private final AuditoriaService auditoriaService;
 
     public VentaPasajeService(VentaRepository ventaRepository,
                               BoletoRepository boletoRepository,
                               ViajeRepository viajeRepository,
                               UsuarioRepository usuarioRepository,
                               CuponRepository cuponRepository,
-                              CatalogoViajeService catalogoViajeService) {
+                              CatalogoViajeService catalogoViajeService,
+                              AuditoriaService auditoriaService) {
         this.ventaRepository = ventaRepository;
         this.boletoRepository = boletoRepository;
         this.viajeRepository = viajeRepository;
         this.usuarioRepository = usuarioRepository;
         this.cuponRepository = cuponRepository;
         this.catalogoViajeService = catalogoViajeService;
+        this.auditoriaService = auditoriaService;
     }
 
     /**
@@ -395,6 +398,17 @@ public class VentaPasajeService {
         venta.setMotivoAnulacion(motivoLimpio);
         venta.setSolicitanteAnulacion(solicitante);
         Venta actualizada = ventaRepository.saveAndFlush(venta);
+        if (auditoriaService != null) {
+            auditoriaService.registrar(
+                    sesionVendedor,
+                    "VENTAS",
+                    "SOLICITAR_ANULACION",
+                    "Venta",
+                    actualizada.getCodigoReserva(),
+                    "Vendedor solicitó anular venta " + actualizada.getCodigoReserva() + " por S/ " + actualizada.getMontoTotal(),
+                    motivoLimpio
+            );
+        }
         return mapearVentaDetalle(actualizada);
     }
 
@@ -410,15 +424,18 @@ public class VentaPasajeService {
             throw new ReglaNegocioException("Esta venta ya se encuentra anulada.");
         }
 
-        Usuario admin = usuarioRepository.findById(sesionAdmin.idUsuario())
-                .orElseThrow(() -> new RecursoNoEncontradoException("Administrador no encontrado."));
-
+        boolean veniaDeSolicitud = EstadoVenta.ANULACION_SOLICITADA.name().equalsIgnoreCase(venta.getEstadoPago());
         String motivoFinal = textoONull(motivo);
         if (motivoFinal == null) {
-            motivoFinal = venta.getMotivoAnulacion() != null
-                    ? venta.getMotivoAnulacion()
-                    : "Anulación autorizada por Gerencia / Administración";
+            if (veniaDeSolicitud && venta.getMotivoAnulacion() != null && !venta.getMotivoAnulacion().isBlank()) {
+                motivoFinal = venta.getMotivoAnulacion();
+            } else {
+                throw new ReglaNegocioException("Por política de auditoría, el administrador debe ingresar un motivo obligatorio para anular una venta.");
+            }
         }
+
+        Usuario admin = usuarioRepository.findById(sesionAdmin.idUsuario())
+                .orElseThrow(() -> new RecursoNoEncontradoException("Administrador no encontrado."));
 
         venta.setEstadoPago(EstadoVenta.ANULADO.name());
         venta.setMotivoAnulacion(motivoFinal);
@@ -429,21 +446,47 @@ public class VentaPasajeService {
         if (guardada.getViaje() != null) {
             catalogoViajeService.sincronizarDisponibilidadViaje(guardada.getViaje());
         }
+        if (auditoriaService != null) {
+            auditoriaService.registrar(
+                    sesionAdmin,
+                    "VENTAS",
+                    "ANULAR_VENTA",
+                    "Venta",
+                    guardada.getCodigoReserva(),
+                    (veniaDeSolicitud ? "Aprobó solicitud y anuló venta " : "Anuló directamente la venta ")
+                            + guardada.getCodigoReserva() + " (S/ " + guardada.getMontoTotal() + "), liberando "
+                            + guardada.getBoletos().size() + " asiento(s).",
+                    motivoFinal
+            );
+        }
         return mapearVentaDetalle(guardada);
     }
 
     @Transactional
-    public VentaDetalleResponse rechazarSolicitudAnulacionAdmin(Integer idVenta, String observacion) {
+    public VentaDetalleResponse rechazarSolicitudAnulacionAdmin(Integer idVenta, String observacion, SesionUsuario sesionAdmin) {
         Venta venta = ventaRepository.findById(idVenta)
                 .orElseThrow(() -> new RecursoNoEncontradoException("La venta no existe."));
         if (!EstadoVenta.ANULACION_SOLICITADA.name().equalsIgnoreCase(venta.getEstadoPago())) {
             throw new ReglaNegocioException("La venta no tiene una solicitud de anulación pendiente.");
         }
+        String obsFinal = observacion != null && !observacion.isBlank()
+                ? observacion.trim()
+                : "Solicitud rechazada por Administración";
         venta.setEstadoPago(EstadoVenta.PAGADO.name());
-        venta.setMotivoAnulacion(observacion != null && !observacion.isBlank()
-                ? "Solicitud rechazada: " + observacion.trim()
-                : "Solicitud rechazada por Administración");
-        return mapearVentaDetalle(ventaRepository.saveAndFlush(venta));
+        venta.setMotivoAnulacion("Solicitud rechazada: " + obsFinal);
+        Venta actualizada = ventaRepository.saveAndFlush(venta);
+        if (auditoriaService != null) {
+            auditoriaService.registrar(
+                    sesionAdmin,
+                    "VENTAS",
+                    "RECHAZAR_ANULACION",
+                    "Venta",
+                    actualizada.getCodigoReserva(),
+                    "Rechazó solicitud de anulación de venta " + actualizada.getCodigoReserva() + " (vuelve a PAGADO).",
+                    obsFinal
+            );
+        }
+        return mapearVentaDetalle(actualizada);
     }
 
     @Transactional(readOnly = true)

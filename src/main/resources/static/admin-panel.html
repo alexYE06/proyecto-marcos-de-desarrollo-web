@@ -51,9 +51,12 @@
                 <button type="button" class="nav-link" data-vista="flota">
                     <i class="bi bi-truck-front"></i> Flota y Tripulación
                 </button>
-                <div class="sidebar-title fw-bold mt-2">Seguridad y Marketing</div>
+                <div class="sidebar-title fw-bold mt-2">Seguridad y Auditoría</div>
                 <button type="button" class="nav-link" data-vista="usuarios">
                     <i class="bi bi-people-fill"></i> Usuarios, Roles y Cupones
+                </button>
+                <button type="button" class="nav-link" data-vista="auditoria">
+                    <i class="bi bi-journal-check text-warning"></i> Bitácora de Auditoría
                 </button>
                 <hr class="border-secondary my-2">
                 <a class="nav-link" href="index.html"><i class="bi bi-house-door"></i> Ir al portal web</a>
@@ -251,7 +254,7 @@
                                                 <th class="text-end">Base</th>
                                                 <th class="text-center">Libres</th>
                                                 <th class="text-center">Estado</th>
-                                                <th class="text-center">Editar</th>
+                                                <th class="text-center">Acciones</th>
                                             </tr>
                                         </thead>
                                         <tbody id="tablaAdminViajes"></tbody>
@@ -288,7 +291,7 @@
                                 <div class="table-responsive">
                                     <table class="table table-sm table-bordered table-admin mb-0">
                                         <thead>
-                                            <tr><th>Ciudad</th><th>Terminal</th><th>Estado</th></tr>
+                                            <tr><th>Ciudad</th><th>Terminal</th><th>Estado</th><th class="text-center">Acción</th></tr>
                                         </thead>
                                         <tbody id="tablaAdminTerminales"></tbody>
                                     </table>
@@ -325,7 +328,7 @@
                                 <div class="table-responsive">
                                     <table class="table table-sm table-bordered table-admin mb-0">
                                         <thead>
-                                            <tr><th>ID</th><th>Origen → Destino</th><th class="text-end">Precio Base</th><th class="text-center">Duración</th></tr>
+                                            <tr><th>ID</th><th>Origen → Destino</th><th class="text-end">Base</th><th class="text-center">Horas</th><th class="text-center">Estado</th></tr>
                                         </thead>
                                         <tbody id="tablaAdminRutas"></tbody>
                                     </table>
@@ -385,7 +388,7 @@
                                 <div class="table-responsive">
                                     <table class="table table-sm table-bordered table-admin mb-0">
                                         <thead>
-                                            <tr><th>DNI</th><th>Empleado</th><th>Cargo / Licencia</th><th class="text-end">Sueldo</th></tr>
+                                            <tr><th>DNI</th><th>Empleado</th><th>Cargo / Licencia</th><th class="text-end">Sueldo</th><th class="text-center">Estado</th></tr>
                                         </thead>
                                         <tbody id="tablaAdminEmpleados"></tbody>
                                     </table>
@@ -466,6 +469,58 @@
                                     </table>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ==================== 7. BITÁCORA INMUTABLE DE AUDITORÍA ==================== -->
+                <section data-seccion="auditoria" class="d-none">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                        <div>
+                            <h3 class="fw-bold mb-0"><i class="bi bi-journal-check text-warning"></i> Bitácora Inmutable de Auditoría</h3>
+                            <small class="text-muted">Trazabilidad completa: cada anulación, baja lógica, cambio de rol o modificación queda registrada con responsable, hora y motivo.</small>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2">
+                            <select class="form-select form-select-sm rounded-pill px-3" id="filtroModuloAuditoria" style="width: auto;">
+                                <option value="">Todos los módulos</option>
+                                <option value="VENTAS">VENTAS</option>
+                                <option value="USUARIOS">USUARIOS</option>
+                                <option value="VIAJES">VIAJES</option>
+                                <option value="RUTAS">RUTAS</option>
+                                <option value="FLOTA">FLOTA</option>
+                                <option value="CUPONES">CUPONES</option>
+                                <option value="EMBARQUE">EMBARQUE</option>
+                            </select>
+                            <button type="button" class="btn btn-outline-success btn-sm rounded-pill px-3 fw-bold" id="btnExportarAuditoriaCsv">
+                                <i class="bi bi-filetype-csv"></i> Exportar CSV
+                            </button>
+                            <button type="button" class="btn btn-dark btn-sm rounded-pill px-3 fw-bold" id="btnRefrescarAuditoria">
+                                <i class="bi bi-arrow-clockwise"></i> Actualizar
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-dark border-0 rounded-4 small d-flex align-items-center gap-2 mb-3">
+                        <i class="bi bi-lock-fill text-warning fs-5"></i>
+                        <span><strong>Política Anti-Borrado:</strong> Ni el Administrador puede eliminar registros de esta bitácora ni borrar ventas físicamente; toda baja requiere un motivo auditado.</span>
+                    </div>
+
+                    <div class="card border-0 rounded-4 shadow-sm p-4">
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-admin mb-0">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 145px;">Fecha y Hora</th>
+                                        <th>Responsable / Cargo</th>
+                                        <th class="text-center">Módulo / Acción</th>
+                                        <th>Entidad y Detalle</th>
+                                        <th>Motivo Registrado</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaBitacoraAuditoria">
+                                    <tr><td colspan="5" class="text-center text-muted py-4">Cargando historial de auditoría...</td></tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </section>

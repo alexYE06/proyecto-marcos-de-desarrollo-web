@@ -26,7 +26,15 @@ public final class AdminOperacionDtos {
             String telefono,
             String rol,
             Boolean activo,
-            String nuevaContrasena
+            String nuevaContrasena,
+            String motivo
+    ) {
+    }
+
+    public record CambioEstadoAuditadoRequest(
+            Boolean activo,
+            String estado,
+            String motivo
     ) {
     }
 

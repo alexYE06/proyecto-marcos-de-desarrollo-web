@@ -29,9 +29,9 @@
     <div class="admin-layout">
         <aside class="admin-sidebar">
             <div class="sidebar-title fw-bold">Módulo Boletería</div>
-            <nav class="nav flex-column gap-1">
-                <a class="nav-link active" href="#seccionNuevaVentaPos"><i class="bi bi-cart-plus"></i> Emitir en Mostrador</a>
-                <a class="nav-link" href="#seccionHistorialPos"><i class="bi bi-cash-coin"></i> Mi Caja / Mis Ventas</a>
+            <nav class="nav flex-column gap-1" id="menuPosSidebar">
+                <button type="button" class="nav-link active" data-vista-pos="venta"><i class="bi bi-cart-plus"></i> Emitir en Mostrador</button>
+                <button type="button" class="nav-link" data-vista-pos="historial"><i class="bi bi-cash-coin"></i> Mi Caja / Mis Ventas</button>
                 <a class="nav-link d-none" href="admin-panel.html" id="linkVolverAdminPos"><i class="bi bi-speedometer2 text-warning"></i> Volver a Panel Admin</a>
                 <a class="nav-link" href="index.html"><i class="bi bi-globe2"></i> Portal Público</a>
                 <button type="button" class="nav-link text-danger" id="btnLogoutPos"><i class="bi bi-box-arrow-right"></i> Cerrar sesión</button>

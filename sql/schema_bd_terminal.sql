@@ -156,3 +156,20 @@ CREATE INDEX IF NOT EXISTS idx_viaje_salida ON viaje(fecha_hora_salida);
 CREATE INDEX IF NOT EXISTS idx_boleto_viaje_asiento ON boleto_emitido(id_viaje, numero_asiento);
 CREATE INDEX IF NOT EXISTS idx_venta_cliente ON operacion_venta(id_cliente);
 CREATE INDEX IF NOT EXISTS idx_venta_vendedor ON operacion_venta(id_vendedor);
+
+-- 10. BITÁCORA INMUTABLE DE AUDITORÍA (QUIÉN, QUÉ, CUÁNDO Y POR QUÉ)
+CREATE TABLE IF NOT EXISTS auditoria_log (
+    id_auditoria SERIAL PRIMARY KEY,
+    fecha_hora TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    id_usuario_actor INTEGER,
+    actor_nombre VARCHAR(120) NOT NULL,
+    actor_rol VARCHAR(25) NOT NULL,
+    modulo VARCHAR(40) NOT NULL,
+    accion VARCHAR(45) NOT NULL,
+    entidad VARCHAR(40) NOT NULL,
+    id_entidad VARCHAR(40),
+    descripcion VARCHAR(350) NOT NULL,
+    motivo VARCHAR(250)
+);
+CREATE INDEX IF NOT EXISTS idx_auditoria_fecha ON auditoria_log(fecha_hora DESC);
+CREATE INDEX IF NOT EXISTS idx_auditoria_modulo ON auditoria_log(modulo, accion);

@@ -28,15 +28,18 @@ public class EmbarqueService {
     private final BoletoRepository boletoRepository;
     private final UsuarioRepository usuarioRepository;
     private final CatalogoViajeService catalogoViajeService;
+    private final AuditoriaService auditoriaService;
 
     public EmbarqueService(ViajeRepository viajeRepository,
                            BoletoRepository boletoRepository,
                            UsuarioRepository usuarioRepository,
-                           CatalogoViajeService catalogoViajeService) {
+                           CatalogoViajeService catalogoViajeService,
+                           AuditoriaService auditoriaService) {
         this.viajeRepository = viajeRepository;
         this.boletoRepository = boletoRepository;
         this.usuarioRepository = usuarioRepository;
         this.catalogoViajeService = catalogoViajeService;
+        this.auditoriaService = auditoriaService;
     }
 
     @Transactional
@@ -119,6 +122,19 @@ public class EmbarqueService {
         boleto.setInspectorAbordaje(inspector);
         Boleto actualizado = boletoRepository.saveAndFlush(boleto);
 
+        if (auditoriaService != null) {
+            auditoriaService.registrar(
+                    sesionInspector,
+                    "EMBARQUE",
+                    "ABORDAJE_QR",
+                    "Boleto",
+                    actualizado.getCodigoBoleto(),
+                    "Validó abordaje de " + actualizado.getPasajeroNombreCompleto()
+                            + " (Asiento " + actualizado.getNumeroAsiento() + ", Viaje #" + viaje.getIdViaje() + ").",
+                    null
+            );
+        }
+
         Map<String, Object> resp = new LinkedHashMap<>();
         resp.put("mensaje", "Abordaje verificado y registrado exitosamente.");
         resp.put("boleto", mapearBoleto(actualizado));
@@ -129,7 +145,7 @@ public class EmbarqueService {
     }
 
     @Transactional
-    public Map<String, Object> cambiarEstadoOperativoViaje(Integer idViaje, String nuevoEstadoTexto) {
+    public Map<String, Object> cambiarEstadoOperativoViaje(Integer idViaje, String nuevoEstadoTexto, SesionUsuario sesionActor) {
         Viaje viaje = viajeRepository.findById(idViaje)
                 .orElseThrow(() -> new RecursoNoEncontradoException("El viaje no existe."));
 
@@ -144,8 +160,20 @@ public class EmbarqueService {
             throw new ReglaNegocioException("Solo Administración General puede cancelar una salida programada.");
         }
 
+        String anterior = viaje.getEstado();
         viaje.setEstado(nuevoEstado.name());
         viajeRepository.saveAndFlush(viaje);
+        if (auditoriaService != null) {
+            auditoriaService.registrar(
+                    sesionActor,
+                    "EMBARQUE",
+                    "CAMBIO_ESTADO_VIAJE",
+                    "Viaje",
+                    idViaje,
+                    "Cambió estado del viaje #" + idViaje + " de " + anterior + " a " + nuevoEstado.name() + ".",
+                    null
+            );
+        }
         return resumirViajeOperativo(viaje);
     }
 

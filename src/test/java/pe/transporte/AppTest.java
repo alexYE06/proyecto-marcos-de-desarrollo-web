@@ -20,6 +20,7 @@ import pe.transporte.repository.*;
 import pe.transporte.security.AuthInterceptor;
 import pe.transporte.security.SesionUsuario;
 import pe.transporte.security.SessionTokenStore;
+import pe.transporte.service.AuditoriaService;
 import pe.transporte.service.CatalogoViajeService;
 import pe.transporte.service.EmbarqueService;
 import pe.transporte.service.VentaPasajeService;
@@ -85,7 +86,7 @@ class AppTest {
         SesionUsuario sesionEmbarque = tokenStore.crearSesion(embarque);
         SesionUsuario sesionAdmin = tokenStore.crearSesion(admin);
 
-        AdminGestionController adminCtrl = new AdminGestionController(null, null);
+        AdminGestionController adminCtrl = new AdminGestionController(null, null, null);
         VendedorPosController posCtrl = new VendedorPosController(null);
         EmbarqueController embCtrl = new EmbarqueController(null);
 
@@ -179,8 +180,18 @@ class AppTest {
         TerminalRepository termRepo = crearStub(TerminalRepository.class, (m, a) -> List.of());
         RutaRepository rutaRepo = crearStub(RutaRepository.class, (m, a) -> List.of());
 
+        List<AuditoriaLog> logsGuardados = new ArrayList<>();
+        AuditoriaLogRepository auditRepo = crearStub(AuditoriaLogRepository.class, (m, a) -> {
+            if ("save".equals(m)) {
+                logsGuardados.add((AuditoriaLog) a[0]);
+                return a[0];
+            }
+            return logsGuardados;
+        });
+        AuditoriaService auditoriaSvc = new AuditoriaService(auditRepo);
+
         CatalogoViajeService catalogoSvc = new CatalogoViajeService(termRepo, rutaRepo, viajeRepo, ventaRepo, boletoRepo);
-        VentaPasajeService service = new VentaPasajeService(ventaRepo, boletoRepo, viajeRepo, usuarioRepo, cuponRepo, catalogoSvc);
+        VentaPasajeService service = new VentaPasajeService(ventaRepo, boletoRepo, viajeRepo, usuarioRepo, cuponRepo, catalogoSvc, auditoriaSvc);
 
         SesionUsuario sesionVend = new SesionUsuario("tok-v", 2, "Lucía", "v@u.pe", RolUsuario.VENDEDOR, Instant.now().plusSeconds(3600));
         SesionUsuario sesionAdm = new SesionUsuario("tok-a", 1, "Carlos", "a@u.pe", RolUsuario.ADMIN, Instant.now().plusSeconds(3600));
@@ -202,15 +213,21 @@ class AppTest {
         assertThrows(ReglaNegocioException.class, () ->
                 service.emitirVenta(reqVenta, CanalVenta.VENTANILLA, sesionVend));
 
+        // El administrador NO puede anular directamente sin motivo de auditoría
+        assertThrows(ReglaNegocioException.class, () ->
+                service.aprobarOEjecutarAnulacionAdmin(99, "   ", sesionAdm));
+
         // El vendedor solicita anulación -> pasa a ANULACION_SOLICITADA (asiento sigue retenido hasta aprobación Admin)
         var solicitada = service.solicitarAnulacionPorVendedor(99, "Error al digitar DNI", sesionVend);
         assertEquals("ANULACION_SOLICITADA", solicitada.estadoPago());
         assertEquals(63, viaje.getAsientosDisponibles());
 
-        // El administrador aprueba la anulación -> pasa a ANULADO y libera el asiento (vuelve a 64)
+        // El administrador aprueba la anulación -> pasa a ANULADO, libera el asiento y registra auditoría inmutable
         var anulada = service.aprobarOEjecutarAnulacionAdmin(99, null, sesionAdm);
         assertEquals("ANULADO", anulada.estadoPago());
         assertEquals(64, viaje.getAsientosDisponibles(), "Tras la anulación del Admin el asiento queda libre");
+        assertTrue(logsGuardados.stream().anyMatch(l -> "ANULAR_VENTA".equals(l.getAccion()) && "ADMIN".equals(l.getActorRol())),
+                "La anulación del administrador debe quedar registrada en la bitácora de auditoría");
     }
 
     @Test
@@ -253,7 +270,7 @@ class AppTest {
         RutaRepository rutaRepo = crearStub(RutaRepository.class, (m, a) -> List.of());
 
         CatalogoViajeService catalogoSvc = new CatalogoViajeService(termRepo, rutaRepo, viajeRepo, ventaRepo, boletoRepo);
-        EmbarqueService embarqueService = new EmbarqueService(viajeRepo, boletoRepo, usuarioRepo, catalogoSvc);
+        EmbarqueService embarqueService = new EmbarqueService(viajeRepo, boletoRepo, usuarioRepo, catalogoSvc, null);
 
         SesionUsuario sesionInsp = new SesionUsuario("tok-e", 3, "Jorge", "e@u.pe", RolUsuario.EMBARQUE, Instant.now().plusSeconds(3600));
         String qrLeido = GeneradorQR.construirPayloadBoleto("TK-ABC123", 5, 12, "74889900");

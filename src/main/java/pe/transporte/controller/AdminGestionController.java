@@ -13,6 +13,7 @@ import pe.transporte.security.AuthInterceptor;
 import pe.transporte.security.RequiereRol;
 import pe.transporte.security.SesionUsuario;
 import pe.transporte.service.AdminGestionService;
+import pe.transporte.service.AuditoriaService;
 import pe.transporte.service.VentaPasajeService;
 
 import java.util.List;
@@ -25,19 +26,31 @@ public class AdminGestionController {
 
     private final AdminGestionService adminGestionService;
     private final VentaPasajeService ventaPasajeService;
+    private final AuditoriaService auditoriaService;
 
     public AdminGestionController(AdminGestionService adminGestionService,
-                                  VentaPasajeService ventaPasajeService) {
+                                  VentaPasajeService ventaPasajeService,
+                                  AuditoriaService auditoriaService) {
         this.adminGestionService = adminGestionService;
         this.ventaPasajeService = ventaPasajeService;
+        this.auditoriaService = auditoriaService;
     }
 
-    // ==================== DASHBOARD Y AUDITORÍA DE VENTAS ====================
+    // ==================== DASHBOARD Y BITÁCORA INMUTABLE DE AUDITORÍA ====================
 
     @GetMapping("/dashboard")
     public ResponseEntity<Map<String, Object>> obtenerDashboard() {
         return ResponseEntity.ok(adminGestionService.obtenerDashboardEjecutivo());
     }
+
+    @GetMapping("/auditoria")
+    public ResponseEntity<List<Map<String, Object>>> listarAuditoria(
+            @RequestParam(required = false) String modulo,
+            @RequestParam(required = false) String accion) {
+        return ResponseEntity.ok(auditoriaService.listarEventos(modulo, accion));
+    }
+
+    // ==================== AUDITORÍA DE VENTAS Y ANULACIONES ====================
 
     @GetMapping("/ventas")
     public ResponseEntity<List<VentaDetalleResponse>> listarVentasGlobal(
@@ -59,9 +72,11 @@ public class AdminGestionController {
     @PostMapping("/ventas/{idVenta}/rechazar-anulacion")
     public ResponseEntity<VentaDetalleResponse> rechazarSolicitudAnulacion(
             @PathVariable Integer idVenta,
-            @RequestBody(required = false) MotivoAccionRequest body) {
+            @RequestBody(required = false) MotivoAccionRequest body,
+            HttpServletRequest request) {
+        SesionUsuario sesion = AuthInterceptor.sesionObligatoria(request);
         return ResponseEntity.ok(ventaPasajeService.rechazarSolicitudAnulacionAdmin(
-                idVenta, body != null ? body.motivo() : null));
+                idVenta, body != null ? body.motivo() : null, sesion));
     }
 
     // ==================== USUARIOS Y ROLES ====================
@@ -72,8 +87,10 @@ public class AdminGestionController {
     }
 
     @PostMapping("/usuarios")
-    public ResponseEntity<Usuario> crearUsuario(@RequestBody CrearUsuarioInternoRequest body) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(adminGestionService.crearUsuarioConRol(body));
+    public ResponseEntity<Usuario> crearUsuario(@RequestBody CrearUsuarioInternoRequest body,
+                                                HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(adminGestionService.crearUsuarioConRol(body, AuthInterceptor.sesionObligatoria(request)));
     }
 
     @PutMapping("/usuarios/{id}")
@@ -92,14 +109,23 @@ public class AdminGestionController {
     }
 
     @PostMapping("/empleados")
-    public ResponseEntity<Empleado> crearEmpleado(@RequestBody EmpleadoRequest body) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(adminGestionService.guardarEmpleado(null, body));
+    public ResponseEntity<Empleado> crearEmpleado(@RequestBody EmpleadoRequest body, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(adminGestionService.guardarEmpleado(null, body, AuthInterceptor.sesionObligatoria(request)));
     }
 
     @PutMapping("/empleados/{id}")
     public ResponseEntity<Empleado> actualizarEmpleado(@PathVariable Integer id,
-                                                       @RequestBody EmpleadoRequest body) {
-        return ResponseEntity.ok(adminGestionService.guardarEmpleado(id, body));
+                                                       @RequestBody EmpleadoRequest body,
+                                                       HttpServletRequest request) {
+        return ResponseEntity.ok(adminGestionService.guardarEmpleado(id, body, AuthInterceptor.sesionObligatoria(request)));
+    }
+
+    @PatchMapping("/empleados/{id}/estado")
+    public ResponseEntity<Empleado> cambiarEstadoEmpleado(@PathVariable Integer id,
+                                                          @RequestBody CambioEstadoAuditadoRequest body,
+                                                          HttpServletRequest request) {
+        return ResponseEntity.ok(adminGestionService.cambiarEstadoEmpleado(id, body, AuthInterceptor.sesionObligatoria(request)));
     }
 
     // ==================== FLOTA DE BUSES ====================
@@ -110,13 +136,23 @@ public class AdminGestionController {
     }
 
     @PostMapping("/buses")
-    public ResponseEntity<Bus> crearBus(@RequestBody BusRequest body) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(adminGestionService.guardarBus(null, body));
+    public ResponseEntity<Bus> crearBus(@RequestBody BusRequest body, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(adminGestionService.guardarBus(null, body, AuthInterceptor.sesionObligatoria(request)));
     }
 
     @PutMapping("/buses/{id}")
-    public ResponseEntity<Bus> actualizarBus(@PathVariable Integer id, @RequestBody BusRequest body) {
-        return ResponseEntity.ok(adminGestionService.guardarBus(id, body));
+    public ResponseEntity<Bus> actualizarBus(@PathVariable Integer id,
+                                             @RequestBody BusRequest body,
+                                             HttpServletRequest request) {
+        return ResponseEntity.ok(adminGestionService.guardarBus(id, body, AuthInterceptor.sesionObligatoria(request)));
+    }
+
+    @PatchMapping("/buses/{id}/estado")
+    public ResponseEntity<Bus> cambiarEstadoBus(@PathVariable Integer id,
+                                                @RequestBody CambioEstadoAuditadoRequest body,
+                                                HttpServletRequest request) {
+        return ResponseEntity.ok(adminGestionService.cambiarEstadoBusAuditado(id, body, AuthInterceptor.sesionObligatoria(request)));
     }
 
     // ==================== TERMINALES, RUTAS Y VIAJES ====================
@@ -127,14 +163,23 @@ public class AdminGestionController {
     }
 
     @PostMapping("/terminales")
-    public ResponseEntity<Terminal> crearTerminal(@RequestBody TerminalRequest body) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(adminGestionService.guardarTerminal(null, body));
+    public ResponseEntity<Terminal> crearTerminal(@RequestBody TerminalRequest body, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(adminGestionService.guardarTerminal(null, body, AuthInterceptor.sesionObligatoria(request)));
     }
 
     @PutMapping("/terminales/{id}")
     public ResponseEntity<Terminal> actualizarTerminal(@PathVariable Integer id,
-                                                       @RequestBody TerminalRequest body) {
-        return ResponseEntity.ok(adminGestionService.guardarTerminal(id, body));
+                                                       @RequestBody TerminalRequest body,
+                                                       HttpServletRequest request) {
+        return ResponseEntity.ok(adminGestionService.guardarTerminal(id, body, AuthInterceptor.sesionObligatoria(request)));
+    }
+
+    @PatchMapping("/terminales/{id}/estado")
+    public ResponseEntity<Terminal> cambiarEstadoTerminal(@PathVariable Integer id,
+                                                          @RequestBody CambioEstadoAuditadoRequest body,
+                                                          HttpServletRequest request) {
+        return ResponseEntity.ok(adminGestionService.cambiarEstadoTerminal(id, body, AuthInterceptor.sesionObligatoria(request)));
     }
 
     @GetMapping("/rutas")
@@ -143,13 +188,23 @@ public class AdminGestionController {
     }
 
     @PostMapping("/rutas")
-    public ResponseEntity<Ruta> crearRuta(@RequestBody RutaRequest body) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(adminGestionService.guardarRuta(null, body));
+    public ResponseEntity<Ruta> crearRuta(@RequestBody RutaRequest body, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(adminGestionService.guardarRuta(null, body, AuthInterceptor.sesionObligatoria(request)));
     }
 
     @PutMapping("/rutas/{id}")
-    public ResponseEntity<Ruta> actualizarRuta(@PathVariable Integer id, @RequestBody RutaRequest body) {
-        return ResponseEntity.ok(adminGestionService.guardarRuta(id, body));
+    public ResponseEntity<Ruta> actualizarRuta(@PathVariable Integer id,
+                                               @RequestBody RutaRequest body,
+                                               HttpServletRequest request) {
+        return ResponseEntity.ok(adminGestionService.guardarRuta(id, body, AuthInterceptor.sesionObligatoria(request)));
+    }
+
+    @PatchMapping("/rutas/{id}/estado")
+    public ResponseEntity<Ruta> cambiarEstadoRuta(@PathVariable Integer id,
+                                                  @RequestBody CambioEstadoAuditadoRequest body,
+                                                  HttpServletRequest request) {
+        return ResponseEntity.ok(adminGestionService.cambiarEstadoRuta(id, body, AuthInterceptor.sesionObligatoria(request)));
     }
 
     @GetMapping("/viajes")
@@ -158,13 +213,24 @@ public class AdminGestionController {
     }
 
     @PostMapping("/viajes")
-    public ResponseEntity<Viaje> crearViaje(@RequestBody ViajeRequest body) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(adminGestionService.guardarViaje(null, body));
+    public ResponseEntity<Viaje> crearViaje(@RequestBody ViajeRequest body, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(adminGestionService.guardarViaje(null, body, AuthInterceptor.sesionObligatoria(request)));
     }
 
     @PutMapping("/viajes/{id}")
-    public ResponseEntity<Viaje> actualizarViaje(@PathVariable Integer id, @RequestBody ViajeRequest body) {
-        return ResponseEntity.ok(adminGestionService.guardarViaje(id, body));
+    public ResponseEntity<Viaje> actualizarViaje(@PathVariable Integer id,
+                                                 @RequestBody ViajeRequest body,
+                                                 HttpServletRequest request) {
+        return ResponseEntity.ok(adminGestionService.guardarViaje(id, body, AuthInterceptor.sesionObligatoria(request)));
+    }
+
+    @PostMapping("/viajes/{id}/cancelar")
+    public ResponseEntity<Viaje> cancelarViaje(@PathVariable Integer id,
+                                               @RequestBody MotivoAccionRequest body,
+                                               HttpServletRequest request) {
+        return ResponseEntity.ok(adminGestionService.cancelarViajeAuditado(
+                id, body != null ? body.motivo() : null, AuthInterceptor.sesionObligatoria(request)));
     }
 
     // ==================== CUPONES PROMOCIONALES ====================
@@ -175,12 +241,22 @@ public class AdminGestionController {
     }
 
     @PostMapping("/cupones")
-    public ResponseEntity<Cupon> crearCupon(@RequestBody CuponRequest body) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(adminGestionService.guardarCupon(null, body));
+    public ResponseEntity<Cupon> crearCupon(@RequestBody CuponRequest body, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(adminGestionService.guardarCupon(null, body, AuthInterceptor.sesionObligatoria(request)));
     }
 
     @PutMapping("/cupones/{id}")
-    public ResponseEntity<Cupon> actualizarCupon(@PathVariable Integer id, @RequestBody CuponRequest body) {
-        return ResponseEntity.ok(adminGestionService.guardarCupon(id, body));
+    public ResponseEntity<Cupon> actualizarCupon(@PathVariable Integer id,
+                                                 @RequestBody CuponRequest body,
+                                                 HttpServletRequest request) {
+        return ResponseEntity.ok(adminGestionService.guardarCupon(id, body, AuthInterceptor.sesionObligatoria(request)));
+    }
+
+    @PatchMapping("/cupones/{id}/estado")
+    public ResponseEntity<Cupon> cambiarEstadoCupon(@PathVariable Integer id,
+                                                    @RequestBody CambioEstadoAuditadoRequest body,
+                                                    HttpServletRequest request) {
+        return ResponseEntity.ok(adminGestionService.cambiarEstadoCupon(id, body, AuthInterceptor.sesionObligatoria(request)));
     }
 }

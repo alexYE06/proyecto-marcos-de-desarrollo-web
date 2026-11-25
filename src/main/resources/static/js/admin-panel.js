@@ -1,14 +1,12 @@
-import { apiGet, apiPost, apiPut } from './core/api.js';
+import { apiGet, apiPost, apiPut, apiPatch } from './core/api.js';
 import { exigirRoles, limpiarSesion, abrirComprobante } from './core/session.js';
 import { escaparHtml, moneda, badgeEstadoVenta, badgeEstadoViaje } from './core/formatters.js';
 
 let ventasGlobalCache = [];
 let viajesAdminCache = [];
-let rutasAdminCache = [];
 let busesAdminCache = [];
-let empleadosAdminCache = [];
-let terminalesAdminCache = [];
 let usuariosAdminCache = [];
+let auditoriaCache = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
     const sesion = exigirRoles(['ADMIN']);
@@ -18,7 +16,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         `<i class="bi bi-shield-lock-fill text-warning"></i> ${escaparHtml(sesion.nombreCompleto || sesion.nombre)}`;
 
     configurarNavegacionSidebar();
-    configurarFormulariosAdmin(sesion);
+    configurarFormulariosAdmin();
 
     document.getElementById('btnLogoutAdmin')?.addEventListener('click', async () => {
         try { await apiPost('/auth/logout'); } catch {}
@@ -42,6 +40,9 @@ function activarVista(nombreVista) {
     document.querySelectorAll('main [data-seccion]').forEach(sec => {
         sec.classList.toggle('d-none', sec.dataset.seccion !== nombreVista);
     });
+    if (nombreVista === 'auditoria') {
+        cargarAuditoria();
+    }
 }
 
 async function recargarTodoAdmin() {
@@ -49,7 +50,8 @@ async function recargarTodoAdmin() {
         cargarDashboard(),
         cargarVentasAdmin(),
         cargarCatalogosOperativos(),
-        cargarUsuariosYCupones()
+        cargarUsuariosYCupones(),
+        cargarAuditoria()
     ]);
 }
 
@@ -102,7 +104,7 @@ function exportarVentasCSV() {
         alert('No hay ventas para exportar.');
         return;
     }
-    const cabeceras = ['ID', 'Reserva', 'Serie', 'Canal', 'AtendidoPor', 'Origen', 'Destino', 'Salida', 'Estado', 'MetodoPago', 'TotalPEN'];
+    const cabeceras = ['ID', 'Reserva', 'Serie', 'Canal', 'AtendidoPor', 'Origen', 'Destino', 'Salida', 'Estado', 'MetodoPago', 'TotalPEN', 'MotivoAnulacion'];
     const filas = ventasGlobalCache.map(v => [
         v.idVenta,
         v.codigoReserva,
@@ -114,14 +116,41 @@ function exportarVentasCSV() {
         `"${v.fechaHoraSalida}"`,
         v.estadoPago,
         v.metodoPago,
-        v.montoTotal
+        v.montoTotal,
+        `"${(v.motivoAnulacion || '').replace(/"/g, '""')}"`
     ].join(','));
 
-    const csv = '\uFEFF' + [cabeceras.join(','), ...filas].join('\n');
+    descargarCsv(`reporte_ventas_urbanride_${new Date().toISOString().slice(0, 10)}.csv`, [cabeceras.join(','), ...filas]);
+}
+
+function exportarAuditoriaCSV() {
+    if (!auditoriaCache.length) {
+        alert('No hay registros de auditoría para exportar.');
+        return;
+    }
+    const cabeceras = ['ID', 'FechaHora', 'Actor', 'Rol', 'Modulo', 'Accion', 'Entidad', 'IdEntidad', 'Descripcion', 'Motivo'];
+    const filas = auditoriaCache.map(a => [
+        a.idAuditoria,
+        `"${a.fechaHora}"`,
+        `"${(a.actorNombre || '').replace(/"/g, '""')}"`,
+        a.actorRol,
+        a.modulo,
+        a.accion,
+        a.entidad,
+        `"${a.idEntidad || ''}"`,
+        `"${(a.descripcion || '').replace(/"/g, '""')}"`,
+        `"${(a.motivo || '').replace(/"/g, '""')}"`
+    ].join(','));
+
+    descargarCsv(`bitacora_auditoria_urbanride_${new Date().toISOString().slice(0, 10)}.csv`, [cabeceras.join(','), ...filas]);
+}
+
+function descargarCsv(nombreArchivo, lineas) {
+    const csv = '\uFEFF' + lineas.join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `reporte_ventas_urbanride_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = nombreArchivo;
     link.click();
 }
 
@@ -170,6 +199,7 @@ async function cargarVentasAdmin() {
                         ${badgeEstadoVenta(v.estadoPago)}
                         ${v.motivoAnulacion ? `<div class="small text-muted mt-1">${escaparHtml(v.motivoAnulacion)}</div>` : ''}
                         ${v.solicitanteAnulacionNombre ? `<div class="small text-dark fw-semibold">Solicita: ${escaparHtml(v.solicitanteAnulacionNombre)}</div>` : ''}
+                        ${v.autorizadorAnulacionNombre ? `<div class="small text-danger fw-semibold">Autorizó: ${escaparHtml(v.autorizadorAnulacionNombre)} (${escaparHtml(v.fechaAnulacion || '')})</div>` : ''}
                     </td>
                     <td class="text-end fw-bold">${moneda(v.montoTotal)}</td>
                     <td class="text-center">
@@ -186,7 +216,7 @@ async function cargarVentasAdmin() {
                                 </button>` : ''}
                             ${esPagado ? `
                                 <button type="button" class="btn btn-outline-danger btn-sm" data-adm-anular-directo="${v.idVenta}">
-                                    Anular
+                                    Anular (Auditado)
                                 </button>` : ''}
                         </div>
                     </td>
@@ -202,26 +232,26 @@ async function cargarVentasAdmin() {
 
         tbody.querySelectorAll('[data-adm-aprobar-anulacion]').forEach(btn => {
             btn.addEventListener('click', async () => {
-                if (!confirm('¿Aprobar la anulación y liberar inmediatamente los asientos de esta venta?')) return;
+                if (!confirm('¿Aprobar la anulación, liberar asientos y dejar registro en la Bitácora de Auditoría?')) return;
                 await apiPost(`/admin/ventas/${btn.dataset.admAprobarAnulacion}/anular`, {});
-                await Promise.all([cargarDashboard(), cargarVentasAdmin(), cargarCatalogosOperativos()]);
+                await recargarTodoAdmin();
             });
         });
 
         tbody.querySelectorAll('[data-adm-rechazar-anulacion]').forEach(btn => {
             btn.addEventListener('click', async () => {
-                const obs = prompt('Motivo de rechazo de la solicitud (opcional):') || 'Rechazada por Administración';
+                const obs = prompt('Motivo de rechazo de la solicitud (quedará en auditoría):') || 'Rechazada por Administración';
                 await apiPost(`/admin/ventas/${btn.dataset.admRechazarAnulacion}/rechazar-anulacion`, { motivo: obs });
-                await Promise.all([cargarDashboard(), cargarVentasAdmin()]);
+                await recargarTodoAdmin();
             });
         });
 
         tbody.querySelectorAll('[data-adm-anular-directo]').forEach(btn => {
             btn.addEventListener('click', async () => {
-                const motivo = prompt('Ingresa el motivo de auditoría para anular esta venta y liberar sus asientos:');
+                const motivo = prompt('Motivo OBLIGATORIO de auditoría para anular esta venta y liberar asientos:');
                 if (!motivo || !motivo.trim()) return;
                 await apiPost(`/admin/ventas/${btn.dataset.admAnularDirecto}/anular`, { motivo: motivo.trim() });
-                await Promise.all([cargarDashboard(), cargarVentasAdmin(), cargarCatalogosOperativos()]);
+                await recargarTodoAdmin();
             });
         });
     } catch (err) {
@@ -229,7 +259,7 @@ async function cargarVentasAdmin() {
     }
 }
 
-// ==================== 3, 4 y 5. OPERACIONES, FLOTA Y TRIPULACIÓN ====================
+// ==================== 3, 4 y 5. OPERACIONES, FLOTA Y TRIPULACIÓN (CON BAJA AUDITADA) ====================
 
 async function cargarCatalogosOperativos() {
     const [terminales, rutas, buses, empleados, viajes] = await Promise.all([
@@ -240,38 +270,68 @@ async function cargarCatalogosOperativos() {
         apiGet('/admin/viajes')
     ]);
 
-    terminalesAdminCache = terminales;
-    rutasAdminCache = rutas;
     busesAdminCache = buses;
-    empleadosAdminCache = empleados;
     viajesAdminCache = viajes;
 
-    // Poblar tabla y selects de Terminales
+    // Terminales con baja lógica auditada
     document.getElementById('tablaAdminTerminales').innerHTML = terminales.map(t => `
         <tr>
             <td class="fw-bold">${escaparHtml(t.ciudad)}</td>
             <td>${escaparHtml(t.nombre)}<div class="text-muted" style="font-size:0.72rem;">${escaparHtml(t.direccion || '')}</div></td>
             <td><span class="badge ${t.activo ? 'bg-success' : 'bg-secondary'}">${t.activo ? 'Activo' : 'Inactivo'}</span></td>
+            <td class="text-center">
+                <button type="button" class="btn btn-sm ${t.activo ? 'btn-outline-danger' : 'btn-outline-success'}"
+                        data-toggle-terminal="${t.idTerminal}" data-activo="${t.activo}">
+                    ${t.activo ? 'Desactivar' : 'Reactivar'}
+                </button>
+            </td>
         </tr>`).join('');
 
-    const optsTerm = terminales.map(t => `<option value="${t.idTerminal}">${escaparHtml(t.ciudad)} — ${escaparHtml(t.nombre)}</option>`).join('');
+    document.querySelectorAll('[data-toggle-terminal]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const estaActivo = btn.dataset.activo === 'true';
+            const motivo = estaActivo ? prompt('Motivo obligatorio de auditoría para desactivar este terminal:') : 'Reactivación operativa';
+            if (estaActivo && (!motivo || !motivo.trim())) return;
+            await apiPatch(`/admin/terminales/${btn.dataset.toggleTerminal}/estado`, { activo: !estaActivo, motivo });
+            await recargarTodoAdmin();
+        });
+    });
+
+    const optsTerm = terminales.filter(t => t.activo).map(t =>
+        `<option value="${t.idTerminal}">${escaparHtml(t.ciudad)} — ${escaparHtml(t.nombre)}</option>`).join('');
     document.getElementById('rutaOrigen').innerHTML = optsTerm;
     document.getElementById('rutaDestino').innerHTML = optsTerm;
 
-    // Poblar Rutas
+    // Rutas con baja lógica auditada
     document.getElementById('tablaAdminRutas').innerHTML = rutas.map(r => `
         <tr>
             <td>#${r.idRuta}</td>
             <td class="fw-semibold">${escaparHtml(r.origen?.ciudad)} → ${escaparHtml(r.destino?.ciudad)}</td>
             <td class="text-end fw-bold">${moneda(r.precioBase)}</td>
-            <td class="text-center">${r.horasEstimadas} hrs</td>
+            <td class="text-center">${r.horasEstimadas}h</td>
+            <td class="text-center">
+                <button type="button" class="btn btn-sm ${r.activo ? 'btn-outline-danger' : 'btn-outline-success'}"
+                        data-toggle-ruta="${r.idRuta}" data-activo="${r.activo}">
+                    ${r.activo ? 'Desactivar' : 'Reactivar'}
+                </button>
+            </td>
         </tr>`).join('');
 
-    document.getElementById('viajeRuta').innerHTML = rutas.map(r =>
+    document.querySelectorAll('[data-toggle-ruta]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const estaActiva = btn.dataset.activo === 'true';
+            const motivo = estaActiva ? prompt('Motivo obligatorio de auditoría para suspender esta ruta:') : 'Reactivación de ruta';
+            if (estaActiva && (!motivo || !motivo.trim())) return;
+            await apiPatch(`/admin/rutas/${btn.dataset.toggleRuta}/estado`, { activo: !estaActiva, motivo });
+            await recargarTodoAdmin();
+        });
+    });
+
+    document.getElementById('viajeRuta').innerHTML = rutas.filter(r => r.activo).map(r =>
         `<option value="${r.idRuta}" data-precio="${r.precioBase}">${escaparHtml(r.origen?.ciudad)} → ${escaparHtml(r.destino?.ciudad)} (Base ${moneda(r.precioBase)})</option>`
     ).join('');
 
-    // Poblar Buses
+    // Buses con cambio de estado auditado
     document.getElementById('tablaAdminBuses').innerHTML = buses.map(b => `
         <tr>
             <td class="fw-bold font-monospace">${escaparHtml(b.placa)}</td>
@@ -289,8 +349,12 @@ async function cargarCatalogosOperativos() {
             const b = busesAdminCache.find(x => String(x.idBus) === btn.dataset.toggleBus);
             if (!b) return;
             const nuevoEstado = b.estado === 'Activo' ? 'Mantenimiento' : 'Activo';
-            await apiPut(`/admin/buses/${b.idBus}`, { ...b, estado: nuevoEstado });
-            await Promise.all([cargarDashboard(), cargarCatalogosOperativos()]);
+            const motivo = nuevoEstado !== 'Activo'
+                ? prompt(`Motivo de auditoría para retirar el bus ${b.placa} a ${nuevoEstado}:`)
+                : 'Unidad aprobada tras revisión técnica';
+            if (nuevoEstado !== 'Activo' && (!motivo || !motivo.trim())) return;
+            await apiPatch(`/admin/buses/${b.idBus}/estado`, { estado: nuevoEstado, motivo });
+            await recargarTodoAdmin();
         });
     });
 
@@ -299,14 +363,30 @@ async function cargarCatalogosOperativos() {
         .map(b => `<option value="${b.idBus}">${escaparHtml(b.placa)} · ${escaparHtml(b.modelo)}</option>`)
         .join('');
 
-    // Poblar Empleados
+    // Empleados con baja lógica auditada
     document.getElementById('tablaAdminEmpleados').innerHTML = empleados.map(e => `
-        <tr>
+        <tr class="${e.activo ? '' : 'table-secondary text-muted'}">
             <td class="font-monospace">${escaparHtml(e.dniEmpleado)}</td>
             <td class="fw-semibold">${escaparHtml(e.nombre)} ${escaparHtml(e.apellido)}</td>
-            <td><span class="badge bg-light text-dark border">${escaparHtml(e.cargo)}</span> <small class="text-muted">${escaparHtml(e.licencia || '')}</small></td>
+            <td><span class="badge bg-light text-dark border">${escaparHtml(e.cargo)}</span> <small>${escaparHtml(e.licencia || '')}</small></td>
             <td class="text-end fw-bold">${moneda(e.sueldo)}</td>
+            <td class="text-center">
+                <button type="button" class="btn btn-sm ${e.activo ? 'btn-outline-danger' : 'btn-outline-success'}"
+                        data-toggle-emp="${e.idEmpleado}" data-activo="${e.activo}">
+                    ${e.activo ? 'Baja' : 'Activar'}
+                </button>
+            </td>
         </tr>`).join('');
+
+    document.querySelectorAll('[data-toggle-emp]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const estaActivo = btn.dataset.activo === 'true';
+            const motivo = estaActivo ? prompt('Motivo de auditoría para dar de baja a este empleado:') : 'Reincorporación';
+            if (estaActivo && (!motivo || !motivo.trim())) return;
+            await apiPatch(`/admin/empleados/${btn.dataset.toggleEmp}/estado`, { activo: !estaActivo, motivo });
+            await recargarTodoAdmin();
+        });
+    });
 
     const conductoresOpts = '<option value="">Sin asignar</option>' + empleados
         .filter(e => e.cargo.toLowerCase() === 'conductor' && e.activo)
@@ -319,7 +399,7 @@ async function cargarCatalogosOperativos() {
     document.getElementById('viajeConductor').innerHTML = conductoresOpts;
     document.getElementById('viajeCopiloto').innerHTML = copilotosOpts;
 
-    // Poblar Viajes
+    // Viajes con botón Cancelar Auditado
     document.getElementById('tablaAdminViajes').innerHTML = viajes.map(v => `
         <tr>
             <td>#${v.idViaje}</td>
@@ -330,14 +410,27 @@ async function cargarCatalogosOperativos() {
             <td class="text-center">${v.asientosDisponibles}</td>
             <td class="text-center">${badgeEstadoViaje(v.estado)}</td>
             <td class="text-center">
-                <button type="button" class="btn btn-outline-primary btn-sm" data-editar-viaje="${v.idViaje}">
+                <button type="button" class="btn btn-outline-primary btn-sm me-1" title="Editar" data-editar-viaje="${v.idViaje}">
                     <i class="bi bi-pencil-square"></i>
                 </button>
+                ${v.estado !== 'CANCELADO' ? `
+                    <button type="button" class="btn btn-outline-danger btn-sm" title="Cancelar salida (Auditado)" data-cancelar-viaje="${v.idViaje}">
+                        <i class="bi bi-x-octagon"></i>
+                    </button>` : ''}
             </td>
         </tr>`).join('');
 
     document.querySelectorAll('[data-editar-viaje]').forEach(btn => {
         btn.addEventListener('click', () => cargarViajeEnFormulario(Number(btn.dataset.editarViaje)));
+    });
+
+    document.querySelectorAll('[data-cancelar-viaje]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const motivo = prompt(`Motivo OBLIGATORIO de auditoría para cancelar el Viaje #${btn.dataset.cancelarViaje}:`);
+            if (!motivo || !motivo.trim()) return;
+            await apiPost(`/admin/viajes/${btn.dataset.cancelarViaje}/cancelar`, { motivo: motivo.trim() });
+            await recargarTodoAdmin();
+        });
     });
 }
 
@@ -398,9 +491,10 @@ async function cargarUsuariosYCupones() {
 
     document.querySelectorAll('[data-cambiar-rol-usr]').forEach(sel => {
         sel.addEventListener('change', async () => {
+            const motivo = prompt(`Motivo de auditoría para cambiar el cargo de este usuario a ${sel.value}:`) || 'Reasignación de cargo';
             try {
-                await apiPut(`/admin/usuarios/${sel.dataset.cambiarRolUsr}`, { rol: sel.value });
-                await cargarUsuariosYCupones();
+                await apiPut(`/admin/usuarios/${sel.dataset.cambiarRolUsr}`, { rol: sel.value, motivo });
+                await recargarTodoAdmin();
             } catch (err) {
                 alert(err.message);
                 await cargarUsuariosYCupones();
@@ -412,9 +506,13 @@ async function cargarUsuariosYCupones() {
         btn.addEventListener('click', async () => {
             const u = usuariosAdminCache.find(x => String(x.idUsuario) === btn.dataset.toggleUsr);
             if (!u) return;
+            const motivo = u.activo
+                ? prompt(`Motivo OBLIGATORIO de auditoría para bloquear a ${u.correo}:`)
+                : 'Reactivación de cuenta autorizada';
+            if (u.activo && (!motivo || !motivo.trim())) return;
             try {
-                await apiPut(`/admin/usuarios/${u.idUsuario}`, { activo: !u.activo });
-                await cargarUsuariosYCupones();
+                await apiPut(`/admin/usuarios/${u.idUsuario}`, { activo: !u.activo, motivo });
+                await recargarTodoAdmin();
             } catch (err) {
                 alert(err.message);
             }
@@ -423,11 +521,15 @@ async function cargarUsuariosYCupones() {
 
     document.querySelectorAll('[data-reset-pass-usr]').forEach(btn => {
         btn.addEventListener('click', async () => {
-            const nueva = prompt('Ingresa la nueva contraseña temporal para este usuario (mín. 6 caracteres):');
+            const nueva = prompt('Ingresa la nueva contraseña temporal (mín. 6 caracteres):');
             if (!nueva) return;
             try {
-                await apiPut(`/admin/usuarios/${btn.dataset.resetPassUsr}`, { nuevaContrasena: nueva });
-                alert('Contraseña actualizada y sesiones previas revocadas.');
+                await apiPut(`/admin/usuarios/${btn.dataset.resetPassUsr}`, {
+                    nuevaContrasena: nueva,
+                    motivo: 'Restablecimiento solicitado por administración'
+                });
+                alert('Contraseña actualizada, sesiones previas revocadas y evento registrado en auditoría.');
+                await cargarAuditoria();
             } catch (err) {
                 alert(err.message);
             }
@@ -440,8 +542,66 @@ async function cargarUsuariosYCupones() {
                 <strong class="font-monospace text-primary">${escaparHtml(c.codigo)}</strong> · ${moneda(c.montoDescuento)}
                 <div class="text-muted" style="font-size:0.75rem;">Usos: ${c.usosActuales}/${c.usosMaximos} · ${escaparHtml(c.descripcion || '')}</div>
             </div>
-            <span class="badge ${c.activo ? 'bg-success' : 'bg-secondary'}">${c.activo ? 'Activo' : 'Inactivo'}</span>
+            <button type="button" class="btn btn-sm ${c.activo ? 'btn-outline-danger' : 'btn-outline-success'}"
+                    data-toggle-cupon="${c.idCupon}" data-activo="${c.activo}">
+                ${c.activo ? 'Desactivar' : 'Activar'}
+            </button>
         </div>`).join('');
+
+    document.querySelectorAll('[data-toggle-cupon]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const estaActivo = btn.dataset.activo === 'true';
+            const motivo = estaActivo ? prompt('Motivo de auditoría para desactivar este cupón:') : 'Reactivación promocional';
+            if (estaActivo && (!motivo || !motivo.trim())) return;
+            await apiPatch(`/admin/cupones/${btn.dataset.toggleCupon}/estado`, { activo: !estaActivo, motivo });
+            await recargarTodoAdmin();
+        });
+    });
+}
+
+// ==================== 7. BITÁCORA INMUTABLE DE AUDITORÍA ====================
+
+async function cargarAuditoria() {
+    const modulo = document.getElementById('filtroModuloAuditoria')?.value || '';
+    const tbody = document.getElementById('tablaBitacoraAuditoria');
+    if (!tbody) return;
+
+    try {
+        auditoriaCache = await apiGet(`/admin/auditoria${modulo ? `?modulo=${encodeURIComponent(modulo)}` : ''}`);
+        if (!auditoriaCache.length) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No hay eventos de auditoría para este filtro.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = auditoriaCache.map(a => {
+            const badgeColor =
+                a.accion.includes('ANULAR') || a.accion.includes('CANCELAR') || a.accion.includes('BAJA') || a.accion.includes('DESACTIVAR')
+                    ? 'bg-danger'
+                    : a.accion.includes('SOLICITAR') || a.accion.includes('ROL') || a.accion.includes('ESTADO') || a.accion.includes('RESET')
+                        ? 'bg-warning text-dark'
+                        : 'bg-success';
+
+            return `
+                <tr>
+                    <td class="font-monospace small">${escaparHtml(a.fechaHora)}</td>
+                    <td>
+                        <div class="fw-bold">${escaparHtml(a.actorNombre)}</div>
+                        <span class="badge bg-dark text-warning">${escaparHtml(a.actorRol)}</span>
+                    </td>
+                    <td class="text-center">
+                        <div class="badge bg-secondary mb-1">${escaparHtml(a.modulo)}</div><br>
+                        <span class="badge ${badgeColor}">${escaparHtml(a.accion)}</span>
+                    </td>
+                    <td>
+                        <div class="small fw-bold text-primary">${escaparHtml(a.entidad)} #${escaparHtml(a.idEntidad)}</div>
+                        <div class="small text-dark">${escaparHtml(a.descripcion)}</div>
+                    </td>
+                    <td class="small text-muted">${a.motivo ? `<i class="bi bi-chat-left-quote text-warning"></i> ${escaparHtml(a.motivo)}` : '—'}</td>
+                </tr>`;
+        }).join('');
+    } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-4">${escaparHtml(err.message)}</td></tr>`;
+    }
 }
 
 // ==================== LISTENERS DE FORMULARIOS ====================
@@ -449,6 +609,9 @@ async function cargarUsuariosYCupones() {
 function configurarFormulariosAdmin() {
     document.getElementById('btnRefrescarDashboard')?.addEventListener('click', recargarTodoAdmin);
     document.getElementById('btnExportarCsv')?.addEventListener('click', exportarVentasCSV);
+    document.getElementById('btnExportarAuditoriaCsv')?.addEventListener('click', exportarAuditoriaCSV);
+    document.getElementById('btnRefrescarAuditoria')?.addEventListener('click', cargarAuditoria);
+    document.getElementById('filtroModuloAuditoria')?.addEventListener('change', cargarAuditoria);
     document.getElementById('filtroEstadoVentasAdmin')?.addEventListener('change', cargarVentasAdmin);
     document.getElementById('filtroCanalVentasAdmin')?.addEventListener('change', cargarVentasAdmin);
     document.getElementById('filtroRolUsuarios')?.addEventListener('change', cargarUsuariosYCupones);
@@ -486,7 +649,7 @@ function configurarFormulariosAdmin() {
                 await apiPost('/admin/viajes', payload);
             }
             document.getElementById('btnLimpiarViaje').click();
-            await Promise.all([cargarDashboard(), cargarCatalogosOperativos()]);
+            await recargarTodoAdmin();
         } catch (err) {
             alert(err.message);
         }
@@ -502,7 +665,7 @@ function configurarFormulariosAdmin() {
                 activo: true
             });
             e.target.reset();
-            await cargarCatalogosOperativos();
+            await recargarTodoAdmin();
         } catch (err) {
             alert(err.message);
         }
@@ -519,7 +682,7 @@ function configurarFormulariosAdmin() {
                 activo: true
             });
             e.target.reset();
-            await Promise.all([cargarDashboard(), cargarCatalogosOperativos()]);
+            await recargarTodoAdmin();
         } catch (err) {
             alert(err.message);
         }
@@ -538,7 +701,7 @@ function configurarFormulariosAdmin() {
                 estado: 'Activo'
             });
             e.target.reset();
-            await Promise.all([cargarDashboard(), cargarCatalogosOperativos()]);
+            await recargarTodoAdmin();
         } catch (err) {
             alert(err.message);
         }
@@ -557,7 +720,7 @@ function configurarFormulariosAdmin() {
                 activo: true
             });
             e.target.reset();
-            await cargarCatalogosOperativos();
+            await recargarTodoAdmin();
         } catch (err) {
             alert(err.message);
         }
@@ -577,7 +740,7 @@ function configurarFormulariosAdmin() {
                 contrasena: document.getElementById('usrPass').value
             });
             e.target.reset();
-            await Promise.all([cargarDashboard(), cargarUsuariosYCupones()]);
+            await recargarTodoAdmin();
         } catch (err) {
             alert(err.message);
         }
@@ -594,7 +757,7 @@ function configurarFormulariosAdmin() {
                 activo: true
             });
             e.target.reset();
-            await cargarUsuariosYCupones();
+            await recargarTodoAdmin();
         } catch (err) {
             alert(err.message);
         }

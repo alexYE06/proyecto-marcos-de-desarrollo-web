@@ -31,6 +31,7 @@ public class AdminGestionService {
     private final VentaRepository ventaRepository;
     private final CuponRepository cuponRepository;
     private final SessionTokenStore tokenStore;
+    private final AuditoriaService auditoriaService;
 
     public AdminGestionService(UsuarioRepository usuarioRepository,
                                EmpleadoRepository empleadoRepository,
@@ -40,7 +41,8 @@ public class AdminGestionService {
                                ViajeRepository viajeRepository,
                                VentaRepository ventaRepository,
                                CuponRepository cuponRepository,
-                               SessionTokenStore tokenStore) {
+                               SessionTokenStore tokenStore,
+                               AuditoriaService auditoriaService) {
         this.usuarioRepository = usuarioRepository;
         this.empleadoRepository = empleadoRepository;
         this.busRepository = busRepository;
@@ -50,6 +52,7 @@ public class AdminGestionService {
         this.ventaRepository = ventaRepository;
         this.cuponRepository = cuponRepository;
         this.tokenStore = tokenStore;
+        this.auditoriaService = auditoriaService;
     }
 
     // ==================== 1. DASHBOARD Y REPORTES GERENCIALES ====================
@@ -81,7 +84,6 @@ public class AdminGestionService {
                 continue;
             }
 
-            // Contabilizar PAGADO y ANULACION_SOLICITADA (aún vigente hasta que Admin decida)
             ingresosTotales = ingresosTotales.add(v.getMontoTotal());
             ventasConfirmadas++;
             boletosVendidos += v.getBoletos().size();
@@ -131,7 +133,7 @@ public class AdminGestionService {
         return dashboard;
     }
 
-    // ==================== 2. GESTIÓN DE USUARIOS Y ROLES ====================
+    // ==================== 2. GESTIÓN DE USUARIOS Y ROLES (AUDITADA) ====================
 
     public List<Usuario> listarUsuarios(String rolFiltro) {
         if (rolFiltro != null && !rolFiltro.isBlank()) {
@@ -141,7 +143,7 @@ public class AdminGestionService {
     }
 
     @Transactional
-    public Usuario crearUsuarioConRol(CrearUsuarioInternoRequest req) {
+    public Usuario crearUsuarioConRol(CrearUsuarioInternoRequest req, SesionUsuario adminActual) {
         if (req == null) throw new ReglaNegocioException("Datos obligatorios.");
         String nombre = requerido(req.nombre(), "El nombre es obligatorio.");
         String apellido = requerido(req.apellido(), "El apellido es obligatorio.");
@@ -175,7 +177,11 @@ public class AdminGestionService {
         u.setContrasenaHash(EncriptadorPassword.encriptar(req.contrasena()));
         u.setRol(rol.name());
         u.setActivo(true);
-        return usuarioRepository.saveAndFlush(u);
+        Usuario guardado = usuarioRepository.saveAndFlush(u);
+
+        auditar(adminActual, "USUARIOS", "CREAR", "Usuario", guardado.getIdUsuario(),
+                "Creó cuenta " + guardado.getCorreo() + " (" + guardado.getNombreCompleto() + ") con cargo " + rol.name() + ".", null);
+        return guardado;
     }
 
     @Transactional
@@ -202,8 +208,11 @@ public class AdminGestionService {
                 throw new ReglaNegocioException("Por seguridad no puedes quitarte el rol ADMIN a ti mismo.");
             }
             if (!nuevoRol.name().equalsIgnoreCase(u.getRol())) {
+                String rolAnterior = u.getRol();
                 u.setRol(nuevoRol.name());
                 revocarSesiones = true;
+                auditar(adminActual, "USUARIOS", "CAMBIO_ROL", "Usuario", u.getIdUsuario(),
+                        "Cambió cargo de " + u.getCorreo() + " de " + rolAnterior + " a " + nuevoRol.name() + ".", req.motivo());
             }
         }
 
@@ -212,8 +221,14 @@ public class AdminGestionService {
                 throw new ReglaNegocioException("No puedes desactivar tu propia cuenta activa de administrador.");
             }
             if (!Objects.equals(u.getActivo(), req.activo())) {
+                if (!req.activo() && (req.motivo() == null || req.motivo().isBlank())) {
+                    throw new ReglaNegocioException("Por política de auditoría, ingresa el motivo para desactivar o dar de baja a este usuario.");
+                }
                 u.setActivo(req.activo());
                 revocarSesiones = true;
+                auditar(adminActual, "USUARIOS", req.activo() ? "REACTIVAR" : "DESACTIVAR", "Usuario", u.getIdUsuario(),
+                        (req.activo() ? "Reactivó acceso de " : "Bloqueó/desactivó acceso de ") + u.getCorreo() + " (" + u.getRol() + ").",
+                        req.motivo());
             }
         }
 
@@ -223,6 +238,8 @@ public class AdminGestionService {
             }
             u.setContrasenaHash(EncriptadorPassword.encriptar(req.nuevaContrasena()));
             revocarSesiones = !esMismoAdmin;
+            auditar(adminActual, "USUARIOS", "RESET_CLAVE", "Usuario", u.getIdUsuario(),
+                    "Restableció la contraseña de " + u.getCorreo() + " y revocó sesiones activas.", req.motivo());
         }
 
         Usuario guardado = usuarioRepository.saveAndFlush(u);
@@ -232,21 +249,22 @@ public class AdminGestionService {
         return guardado;
     }
 
-    // ==================== 3. GESTIÓN DE EMPLEADOS / TRIPULACIÓN ====================
+    // ==================== 3. EMPLEADOS / TRIPULACIÓN (AUDITADO) ====================
 
     public List<Empleado> listarEmpleados() {
         return empleadoRepository.findAllByOrderByApellidoAscNombreAsc();
     }
 
     @Transactional
-    public Empleado guardarEmpleado(Integer idEmpleado, EmpleadoRequest req) {
+    public Empleado guardarEmpleado(Integer idEmpleado, EmpleadoRequest req, SesionUsuario adminActual) {
         if (req == null) throw new ReglaNegocioException("Datos del empleado obligatorios.");
-        Empleado emp = idEmpleado != null
+        boolean esNuevo = idEmpleado == null;
+        Empleado emp = !esNuevo
                 ? empleadoRepository.findById(idEmpleado).orElseThrow(() -> new RecursoNoEncontradoException("Empleado no encontrado."))
                 : new Empleado();
 
         String dni = requerido(req.dniEmpleado(), "El DNI del empleado es obligatorio.");
-        if (idEmpleado == null && empleadoRepository.existsByDniEmpleado(dni)) {
+        if (esNuevo && empleadoRepository.existsByDniEmpleado(dni)) {
             throw new ReglaNegocioException("Ya existe un empleado registrado con ese DNI.");
         }
 
@@ -258,22 +276,45 @@ public class AdminGestionService {
         emp.setTelefono(req.telefono() != null ? req.telefono().trim() : null);
         emp.setSueldo(req.sueldo() != null ? req.sueldo() : BigDecimal.ZERO);
         emp.setActivo(req.activo() == null || req.activo());
-        return empleadoRepository.saveAndFlush(emp);
+        Empleado guardado = empleadoRepository.saveAndFlush(emp);
+
+        auditar(adminActual, "FLOTA", esNuevo ? "CREAR" : "EDITAR", "Empleado", guardado.getIdEmpleado(),
+                (esNuevo ? "Registró " : "Actualizó ") + guardado.getCargo() + " " + guardado.getNombreCompleto() + " (DNI " + guardado.getDniEmpleado() + ").",
+                null);
+        return guardado;
     }
 
-    // ==================== 4. GESTIÓN DE FLOTA DE BUSES ====================
+    @Transactional
+    public Empleado cambiarEstadoEmpleado(Integer idEmpleado, CambioEstadoAuditadoRequest req, SesionUsuario adminActual) {
+        Empleado emp = empleadoRepository.findById(idEmpleado)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Empleado no encontrado."));
+        boolean nuevoEstado = req != null && req.activo() != null ? req.activo() : !Boolean.TRUE.equals(emp.getActivo());
+        if (!nuevoEstado) {
+            requerido(req != null ? req.motivo() : null, "Ingresa un motivo obligatorio de auditoría para dar de baja al empleado.");
+        }
+        emp.setActivo(nuevoEstado);
+        Empleado guardado = empleadoRepository.saveAndFlush(emp);
+        auditar(adminActual, "FLOTA", nuevoEstado ? "REACTIVAR" : "BAJA_LOGICA", "Empleado", guardado.getIdEmpleado(),
+                (nuevoEstado ? "Reactivó al empleado " : "Dio de baja lógica al empleado ") + guardado.getNombreCompleto() + " (" + guardado.getCargo() + ").",
+                req != null ? req.motivo() : null);
+        return guardado;
+    }
+
+    // ==================== 4. FLOTA DE BUSES (AUDITADA) ====================
 
     public List<Bus> listarBuses() {
         return busRepository.findAllByOrderByIdBusAsc();
     }
 
     @Transactional
-    public Bus guardarBus(Integer idBus, BusRequest req) {
+    public Bus guardarBus(Integer idBus, BusRequest req, SesionUsuario adminActual) {
         if (req == null) throw new ReglaNegocioException("Datos del bus obligatorios.");
-        Bus bus = idBus != null
+        boolean esNuevo = idBus == null;
+        Bus bus = !esNuevo
                 ? busRepository.findById(idBus).orElseThrow(() -> new RecursoNoEncontradoException("Bus no encontrado."))
                 : new Bus();
 
+        String estadoAnterior = bus.getEstado();
         String placa = requerido(req.placa(), "La placa del bus es obligatoria.").toUpperCase();
         busRepository.findByPlacaIgnoreCase(placa).ifPresent(existente -> {
             if (!existente.getIdBus().equals(idBus)) {
@@ -288,19 +329,44 @@ public class AdminGestionService {
         bus.setPisos(req.pisos() != null && req.pisos() > 0 ? req.pisos() : 2);
         bus.setCapacidadAsientos(req.capacidadAsientos() != null && req.capacidadAsientos() > 0 ? req.capacidadAsientos() : 64);
         bus.setEstado(req.estado() != null && !req.estado().isBlank() ? req.estado().trim() : "Activo");
-        return busRepository.saveAndFlush(bus);
+        Bus guardado = busRepository.saveAndFlush(bus);
+
+        auditar(adminActual, "FLOTA", esNuevo ? "CREAR" : "CAMBIO_ESTADO", "Bus", guardado.getPlaca(),
+                esNuevo ? "Incorporó bus placa " + guardado.getPlaca() + " (" + guardado.getMarca() + " " + guardado.getModelo() + ")."
+                        : "Cambió estado del bus " + guardado.getPlaca() + " de " + estadoAnterior + " a " + guardado.getEstado() + ".",
+                null);
+        return guardado;
     }
 
-    // ==================== 5. TERMINALES, RUTAS Y PROGRAMACIÓN DE VIAJES ====================
+    @Transactional
+    public Bus cambiarEstadoBusAuditado(Integer idBus, CambioEstadoAuditadoRequest req, SesionUsuario adminActual) {
+        Bus bus = busRepository.findById(idBus)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Bus no encontrado."));
+        String nuevoEstado = requerido(req != null ? req.estado() : null, "Indica el nuevo estado del bus.");
+        if (!"Activo".equalsIgnoreCase(nuevoEstado)) {
+            requerido(req.motivo(), "Indica un motivo de auditoría para retirar el bus a " + nuevoEstado + ".");
+        }
+        String anterior = bus.getEstado();
+        bus.setEstado(nuevoEstado);
+        Bus guardado = busRepository.saveAndFlush(bus);
+        auditar(adminActual, "FLOTA", "Inactivo".equalsIgnoreCase(nuevoEstado) ? "BAJA_LOGICA" : "CAMBIO_ESTADO",
+                "Bus", guardado.getPlaca(),
+                "Cambió estado del bus " + guardado.getPlaca() + " de " + anterior + " a " + nuevoEstado + ".",
+                req.motivo());
+        return guardado;
+    }
+
+    // ==================== 5. TERMINALES, RUTAS Y VIAJES (AUDITADOS) ====================
 
     public List<Terminal> listarTerminales() {
         return terminalRepository.findAllByOrderByCiudadAscNombreAsc();
     }
 
     @Transactional
-    public Terminal guardarTerminal(Integer idTerminal, TerminalRequest req) {
+    public Terminal guardarTerminal(Integer idTerminal, TerminalRequest req, SesionUsuario adminActual) {
         if (req == null) throw new ReglaNegocioException("Datos del terminal obligatorios.");
-        Terminal t = idTerminal != null
+        boolean esNuevo = idTerminal == null;
+        Terminal t = !esNuevo
                 ? terminalRepository.findById(idTerminal).orElseThrow(() -> new RecursoNoEncontradoException("Terminal no encontrado."))
                 : new Terminal();
 
@@ -308,7 +374,26 @@ public class AdminGestionService {
         t.setCiudad(requerido(req.ciudad(), "La ciudad es obligatoria."));
         t.setDireccion(req.direccion() != null ? req.direccion().trim() : null);
         t.setActivo(req.activo() == null || req.activo());
-        return terminalRepository.saveAndFlush(t);
+        Terminal guardado = terminalRepository.saveAndFlush(t);
+        auditar(adminActual, "RUTAS", esNuevo ? "CREAR" : "EDITAR", "Terminal", guardado.getIdTerminal(),
+                (esNuevo ? "Creó terminal " : "Editó terminal ") + guardado.getCiudad() + " — " + guardado.getNombre() + ".", null);
+        return guardado;
+    }
+
+    @Transactional
+    public Terminal cambiarEstadoTerminal(Integer idTerminal, CambioEstadoAuditadoRequest req, SesionUsuario adminActual) {
+        Terminal t = terminalRepository.findById(idTerminal)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Terminal no encontrado."));
+        boolean nuevo = req != null && req.activo() != null ? req.activo() : !Boolean.TRUE.equals(t.getActivo());
+        if (!nuevo) {
+            requerido(req != null ? req.motivo() : null, "Ingresa un motivo obligatorio de auditoría para desactivar el terminal.");
+        }
+        t.setActivo(nuevo);
+        Terminal guardado = terminalRepository.saveAndFlush(t);
+        auditar(adminActual, "RUTAS", nuevo ? "REACTIVAR" : "BAJA_LOGICA", "Terminal", guardado.getIdTerminal(),
+                (nuevo ? "Reactivó terminal " : "Desactivó terminal ") + guardado.getCiudad() + " — " + guardado.getNombre() + ".",
+                req != null ? req.motivo() : null);
+        return guardado;
     }
 
     public List<Ruta> listarRutas() {
@@ -316,7 +401,7 @@ public class AdminGestionService {
     }
 
     @Transactional
-    public Ruta guardarRuta(Integer idRuta, RutaRequest req) {
+    public Ruta guardarRuta(Integer idRuta, RutaRequest req, SesionUsuario adminActual) {
         if (req == null || req.idTerminalOrigen() == null || req.idTerminalDestino() == null) {
             throw new ReglaNegocioException("Selecciona el terminal de origen y de destino.");
         }
@@ -335,7 +420,8 @@ public class AdminGestionService {
         Terminal dest = terminalRepository.findById(req.idTerminalDestino())
                 .orElseThrow(() -> new RecursoNoEncontradoException("Terminal de destino no existe."));
 
-        Ruta r = idRuta != null
+        boolean esNuevo = idRuta == null;
+        Ruta r = !esNuevo
                 ? rutaRepository.findById(idRuta).orElseThrow(() -> new RecursoNoEncontradoException("Ruta no encontrada."))
                 : new Ruta();
 
@@ -345,7 +431,27 @@ public class AdminGestionService {
         r.setHorasEstimadas(req.horasEstimadas());
         r.setDistanciaKm(req.distanciaKm());
         r.setActivo(req.activo() == null || req.activo());
-        return rutaRepository.saveAndFlush(r);
+        Ruta guardada = rutaRepository.saveAndFlush(r);
+        auditar(adminActual, "RUTAS", esNuevo ? "CREAR" : "EDITAR", "Ruta", guardada.getIdRuta(),
+                (esNuevo ? "Creó ruta " : "Editó ruta ") + orig.getCiudad() + " → " + dest.getCiudad() + " (Base S/ " + req.precioBase() + ").",
+                null);
+        return guardada;
+    }
+
+    @Transactional
+    public Ruta cambiarEstadoRuta(Integer idRuta, CambioEstadoAuditadoRequest req, SesionUsuario adminActual) {
+        Ruta r = rutaRepository.findById(idRuta)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Ruta no encontrada."));
+        boolean nuevo = req != null && req.activo() != null ? req.activo() : !Boolean.TRUE.equals(r.getActivo());
+        if (!nuevo) {
+            requerido(req != null ? req.motivo() : null, "Ingresa un motivo obligatorio de auditoría para desactivar la ruta.");
+        }
+        r.setActivo(nuevo);
+        Ruta guardada = rutaRepository.saveAndFlush(r);
+        auditar(adminActual, "RUTAS", nuevo ? "REACTIVAR" : "BAJA_LOGICA", "Ruta", guardada.getIdRuta(),
+                (nuevo ? "Reactivó ruta " : "Desactivó ruta ") + r.toString() + ".",
+                req != null ? req.motivo() : null);
+        return guardada;
     }
 
     public List<Viaje> listarViajes() {
@@ -353,7 +459,7 @@ public class AdminGestionService {
     }
 
     @Transactional
-    public Viaje guardarViaje(Integer idViaje, ViajeRequest req) {
+    public Viaje guardarViaje(Integer idViaje, ViajeRequest req, SesionUsuario adminActual) {
         if (req == null || req.idRuta() == null || req.fechaHoraSalida() == null || req.fechaHoraSalida().isBlank()) {
             throw new ReglaNegocioException("La ruta y la fecha/hora de salida son obligatorias.");
         }
@@ -368,7 +474,8 @@ public class AdminGestionService {
             throw new ReglaNegocioException("Formato de fecha y hora inválido.");
         }
 
-        Viaje v = idViaje != null
+        boolean esNuevo = idViaje == null;
+        Viaje v = !esNuevo
                 ? viajeRepository.findById(idViaje).orElseThrow(() -> new RecursoNoEncontradoException("Viaje no encontrado."))
                 : new Viaje();
 
@@ -379,7 +486,7 @@ public class AdminGestionService {
                 throw new ReglaNegocioException("No se puede asignar el bus " + bus.getPlaca() + " porque está en estado: " + bus.getEstado() + ".");
             }
             v.setBus(bus);
-            if (idViaje == null) {
+            if (esNuevo) {
                 v.setAsientosDisponibles(bus.getCapacidadAsientos() != null ? bus.getCapacidadAsientos() : 64);
             }
         }
@@ -391,7 +498,7 @@ public class AdminGestionService {
                 throw new ReglaNegocioException("El conductor seleccionado se encuentra inactivo.");
             }
             v.setConductor(cond);
-        } else if (idViaje != null) {
+        } else if (!esNuevo) {
             v.setConductor(null);
         }
 
@@ -399,7 +506,7 @@ public class AdminGestionService {
             Empleado cop = empleadoRepository.findById(req.idCopiloto())
                     .orElseThrow(() -> new RecursoNoEncontradoException("Copiloto no encontrado."));
             v.setCopiloto(cop);
-        } else if (idViaje != null) {
+        } else if (!esNuevo) {
             v.setCopiloto(null);
         }
 
@@ -411,24 +518,43 @@ public class AdminGestionService {
         if (v.getAsientosDisponibles() == null) {
             v.setAsientosDisponibles(64);
         }
-        return viajeRepository.saveAndFlush(v);
+        Viaje guardado = viajeRepository.saveAndFlush(v);
+        auditar(adminActual, "VIAJES", esNuevo ? "CREAR" : "EDITAR", "Viaje", guardado.getIdViaje(),
+                (esNuevo ? "Programó viaje #" : "Modificó viaje #") + guardado.getIdViaje() + " (" + ruta.getOrigen().getCiudad()
+                        + " → " + ruta.getDestino().getCiudad() + ", salida " + fechaSalida + ").", null);
+        return guardado;
     }
 
-    // ==================== 6. CUPONES PROMOCIONALES ====================
+    @Transactional
+    public Viaje cancelarViajeAuditado(Integer idViaje, String motivo, SesionUsuario adminActual) {
+        String motivoLimpio = requerido(motivo, "Por auditoría, debes ingresar un motivo obligatorio para cancelar esta salida.");
+        Viaje v = viajeRepository.findById(idViaje)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Viaje no encontrado."));
+        v.setEstado("CANCELADO");
+        Viaje guardado = viajeRepository.saveAndFlush(v);
+        auditar(adminActual, "VIAJES", "CANCELAR_VIAJE", "Viaje", guardado.getIdViaje(),
+                "Canceló salida programada #" + guardado.getIdViaje() + " ("
+                        + (guardado.getRuta() != null ? guardado.getRuta().toString() : "") + ").",
+                motivoLimpio);
+        return guardado;
+    }
+
+    // ==================== 6. CUPONES PROMOCIONALES (AUDITADOS) ====================
 
     public List<Cupon> listarCupones() {
         return cuponRepository.findAllByOrderByIdCuponDesc();
     }
 
     @Transactional
-    public Cupon guardarCupon(Integer idCupon, CuponRequest req) {
+    public Cupon guardarCupon(Integer idCupon, CuponRequest req, SesionUsuario adminActual) {
         if (req == null) throw new ReglaNegocioException("Datos del cupón obligatorios.");
         String codigo = requerido(req.codigo(), "El código del cupón es obligatorio.").toUpperCase();
         if (req.montoDescuento() == null || req.montoDescuento().compareTo(BigDecimal.ZERO) <= 0) {
             throw new ReglaNegocioException("El monto de descuento debe ser mayor a S/ 0.");
         }
 
-        Cupon c = idCupon != null
+        boolean esNuevo = idCupon == null;
+        Cupon c = !esNuevo
                 ? cuponRepository.findById(idCupon).orElseThrow(() -> new RecursoNoEncontradoException("Cupón no encontrado."))
                 : new Cupon();
 
@@ -444,7 +570,33 @@ public class AdminGestionService {
         c.setUsosMaximos(req.usosMaximos() != null && req.usosMaximos() > 0 ? req.usosMaximos() : 100);
         c.setFechaExpiracion(req.fechaExpiracion());
         c.setActivo(req.activo() == null || req.activo());
-        return cuponRepository.saveAndFlush(c);
+        Cupon guardado = cuponRepository.saveAndFlush(c);
+        auditar(adminActual, "CUPONES", esNuevo ? "CREAR" : "EDITAR", "Cupon", guardado.getCodigo(),
+                (esNuevo ? "Creó cupón " : "Actualizó cupón ") + guardado.getCodigo() + " (- S/ " + guardado.getMontoDescuento() + ").",
+                null);
+        return guardado;
+    }
+
+    @Transactional
+    public Cupon cambiarEstadoCupon(Integer idCupon, CambioEstadoAuditadoRequest req, SesionUsuario adminActual) {
+        Cupon c = cuponRepository.findById(idCupon)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Cupón no encontrado."));
+        boolean nuevo = req != null && req.activo() != null ? req.activo() : !Boolean.TRUE.equals(c.getActivo());
+        if (!nuevo) {
+            requerido(req != null ? req.motivo() : null, "Ingresa el motivo de auditoría para desactivar el cupón.");
+        }
+        c.setActivo(nuevo);
+        Cupon guardado = cuponRepository.saveAndFlush(c);
+        auditar(adminActual, "CUPONES", nuevo ? "REACTIVAR" : "BAJA_LOGICA", "Cupon", guardado.getCodigo(),
+                (nuevo ? "Reactivó cupón " : "Desactivó cupón ") + guardado.getCodigo() + ".",
+                req != null ? req.motivo() : null);
+        return guardado;
+    }
+
+    private void auditar(SesionUsuario actor, String modulo, String accion, String entidad, Object id, String desc, String motivo) {
+        if (auditoriaService != null) {
+            auditoriaService.registrar(actor, modulo, accion, entidad, id, desc, motivo);
+        }
     }
 
     private String requerido(String valor, String mensaje) {

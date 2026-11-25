@@ -47,8 +47,10 @@ public class EmbarqueController {
     @PatchMapping("/viajes/{idViaje}/estado")
     public ResponseEntity<Map<String, Object>> cambiarEstadoViaje(
             @PathVariable Integer idViaje,
-            @RequestBody CambiarEstadoViajeRequest body) {
+            @RequestBody CambiarEstadoViajeRequest body,
+            HttpServletRequest request) {
+        SesionUsuario sesion = AuthInterceptor.sesionObligatoria(request);
         return ResponseEntity.ok(embarqueService.cambiarEstadoOperativoViaje(
-                idViaje, body != null ? body.estado() : null));
+                idViaje, body != null ? body.estado() : null, sesion));
     }
 }
